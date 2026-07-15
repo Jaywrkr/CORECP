@@ -7,6 +7,8 @@ interface RequisitosPanelProps {
   result: ExtractionResult | null;
   error: string | null;
   onRetry?: () => void;
+  documentCount?: number;
+  progressLabel?: string | null;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -37,12 +39,19 @@ function EmptyState({ message }: { message: string }) {
   );
 }
 
-export default function RequisitosPanel({ status, result, error, onRetry }: RequisitosPanelProps) {
+export default function RequisitosPanel({
+  status,
+  result,
+  error,
+  onRetry,
+  documentCount = 0,
+  progressLabel,
+}: RequisitosPanelProps) {
   if (status === "idle") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Sube un pliego en la columna izquierda para comenzar el análisis.
+          Sube uno o más pliegos en la columna izquierda para comenzar el análisis.
         </p>
       </div>
     );
@@ -56,7 +65,11 @@ export default function RequisitosPanel({ status, result, error, onRetry }: Requ
           style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
         />
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {status === "uploading" ? "Leyendo el texto del PDF…" : "Analizando el pliego con Claude…"}
+          {status === "uploading"
+            ? progressLabel ?? "Leyendo el texto del PDF…"
+            : documentCount > 1
+              ? `Consolidando el análisis de ${documentCount} documentos con Claude…`
+              : "Analizando el pliego con Claude…"}
         </p>
         <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
           Esto puede tardar hasta un minuto en documentos extensos.
@@ -99,6 +112,13 @@ export default function RequisitosPanel({ status, result, error, onRetry }: Requ
 
   return (
     <div className="flex flex-col gap-8 px-5 py-5">
+      {documentCount > 1 && (
+        <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+          Análisis consolidado de {documentCount} documentos — la información repetida entre archivos
+          se combinó en una sola vista.
+        </p>
+      )}
+
       {/* Bloque A: requisitos detectados */}
       <section>
         <div className="mb-4 flex items-center gap-2">

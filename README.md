@@ -9,14 +9,18 @@ sesiones.
 
 ## Cómo funciona
 
-1. El usuario sube un PDF (el pliego) en la columna izquierda; se visualiza embebido
-   y navegable.
-2. El texto del PDF se extrae **en el navegador** (`pdfjs-dist`) — el archivo nunca
-   se sube al servidor. Solo el texto extraído se envía a `/api/extract`, que lo
-   analiza con la API de Claude (Anthropic) usando un prompt que fuerza una salida
-   JSON estructurada.
-3. La columna derecha muestra los requisitos detectados y los campos sugeridos para
-   Anexo 2 y Anexo 3.
+1. El usuario sube uno o más PDFs (el pliego, o varios documentos del mismo proceso)
+   en la columna izquierda; cada uno se visualiza embebido y navegable, con pestañas
+   para cambiar entre ellos si hay más de uno.
+2. El texto de cada PDF se extrae **en el navegador** (`pdfjs-dist`) — los archivos
+   nunca se suben al servidor. Solo el texto extraído de todos los documentos se
+   envía en una sola solicitud a `/api/extract`, que lo analiza con la API de Claude
+   (Anthropic) usando un prompt que fuerza una salida JSON estructurada.
+3. La columna derecha muestra **un único resultado consolidado**: si el mismo
+   requisito o perfil aparece repetido entre documentos (o dentro del mismo
+   documento), se combina en una sola entrada — tanto por instrucción explícita al
+   modelo como por una limpieza de duplicados exactos en el servidor. Al agregar o
+   quitar un documento, el análisis se vuelve a consolidar automáticamente.
 
 ## Desarrollo local
 

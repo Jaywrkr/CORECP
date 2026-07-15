@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import UploadZone from "@/components/UploadZone";
+import DocumentTabs from "@/components/DocumentTabs";
 import RequisitosPanel from "@/components/RequisitosPanel";
 import { extractPdfText } from "@/lib/extractPdfText";
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
@@ -16,41 +17,65 @@ const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ),
 });
 
+function fileKey(file: File): string {
+  return `${file.name}-${file.size}-${file.lastModified}`;
+}
+
 export default function Home() {
-  const [file, setFile] = useState<File | null>(null);
+  const [documents, setDocuments] = useState<File[]>([]);
+  const [activeIndex, setActiveIndex] = useState(0);
   const [status, setStatus] = useState<ExtractionStatus>("idle");
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [progressLabel, setProgressLabel] = useState<string | null>(null);
 
-  const runExtraction = useCallback(async (pdfFile: File) => {
+  const runExtraction = useCallback(async (docs: File[]) => {
+    if (docs.length === 0) {
+      setStatus("idle");
+      setResult(null);
+      setError(null);
+      setProgressLabel(null);
+      return;
+    }
+
     setStatus("uploading");
     setError(null);
     setResult(null);
 
     try {
-      // Extract text in the browser first — sending only the text (not the
-      // raw PDF bytes) keeps the request well under hosting body-size limits
-      // and avoids uploading the file to the server at all.
-      let text: string;
-      try {
-        text = await extractPdfText(pdfFile);
-      } catch {
+      // Extract text for every document in the browser first — sending only
+      // the text (not the raw PDF bytes) keeps the request well under
+      // hosting body-size limits and avoids uploading the files at all.
+      const extracted: { filename: string; text: string }[] = [];
+      for (let i = 0; i < docs.length; i++) {
+        setProgressLabel(
+          docs.length > 1 ? `Leyendo documento ${i + 1} de ${docs.length}…` : "Leyendo el texto del PDF…",
+        );
+        let text: string;
+        try {
+          text = await extractPdfText(docs[i]);
+        } catch {
+          throw new Error(
+            `No se pudo leer "${docs[i].name}". Verifica que el archivo no esté dañado o protegido.`,
+          );
+        }
+        if (text) {
+          extracted.push({ filename: docs[i].name, text });
+        }
+      }
+
+      if (extracted.length === 0) {
         throw new Error(
-          "No se pudo leer el PDF. Verifica que el archivo no esté dañado o protegido.",
+          "No se pudo extraer texto de ningún documento. Es posible que sean escaneos (imágenes) sin texto seleccionable.",
         );
       }
 
-      if (!text) {
-        throw new Error(
-          "No se pudo extraer texto del PDF. Es posible que sea un documento escaneado (imagen) sin texto seleccionable.",
-        );
-      }
-
+      setProgressLabel(null);
       setStatus("extracting");
       const res = await fetch("/api/extract", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ documents: extracted }),
       });
 
       let data: unknown;
@@ -64,30 +89,55 @@ export default function Home() {
 
       if (!res.ok) {
         const message = (data as { error?: string } | null)?.error;
-        throw new Error(message || "Error al procesar el documento.");
+        throw new Error(message || "Error al procesar los documentos.");
       }
 
       setResult(data as ExtractionResult);
       setStatus("done");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido al procesar el documento.");
+      setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
       setStatus("error");
+    } finally {
+      setProgressLabel(null);
     }
   }, []);
 
-  const handleFileSelected = useCallback(
-    (selected: File) => {
-      setFile(selected);
-      void runExtraction(selected);
+  const handleFilesSelected = useCallback(
+    (newFiles: File[]) => {
+      const existingKeys = new Set(documents.map(fileKey));
+      const merged = [...documents, ...newFiles.filter((f) => !existingKeys.has(fileKey(f)))];
+      if (merged.length === documents.length) return;
+      setDocuments(merged);
+      void runExtraction(merged);
     },
-    [runExtraction],
+    [documents, runExtraction],
   );
 
+  const handleRemoveDocument = useCallback(
+    (index: number) => {
+      const next = documents.filter((_, i) => i !== index);
+      setDocuments(next);
+      setActiveIndex((prev) => Math.max(0, prev >= index ? prev - 1 : prev));
+      void runExtraction(next);
+    },
+    [documents, runExtraction],
+  );
+
+  const handleReset = useCallback(() => {
+    setDocuments([]);
+    setActiveIndex(0);
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+    setProgressLabel(null);
+  }, []);
+
   const handleRetry = useCallback(() => {
-    if (file) void runExtraction(file);
-  }, [file, runExtraction]);
+    if (documents.length > 0) void runExtraction(documents);
+  }, [documents, runExtraction]);
 
   const isBusy = status === "uploading" || status === "extracting";
+  const activeFile = documents[activeIndex] ?? null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -117,45 +167,59 @@ export default function Home() {
             </p>
           </div>
         </div>
-        {file && (
-          <button
-            onClick={() => {
-              setFile(null);
-              setStatus("idle");
-              setResult(null);
-              setError(null);
-            }}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-          >
-            Cargar otro pliego
-          </button>
+        {documents.length > 0 && (
+          <div className="flex items-center gap-2">
+            <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
+            <button
+              onClick={handleReset}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+            >
+              Empezar de nuevo
+            </button>
+          </div>
         )}
       </header>
 
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Columna izquierda: PDF */}
+        {/* Columna izquierda: PDF(s) */}
         <section
           className="flex min-h-[50vh] flex-1 flex-col border-b lg:min-h-0 lg:w-1/2 lg:border-r lg:border-b-0"
           style={{ borderColor: "var(--border)" }}
         >
-          {!file ? (
+          {!activeFile ? (
             <div className="flex flex-1 items-center justify-center p-6">
               <div className="w-full max-w-md">
-                <UploadZone onFileSelected={handleFileSelected} disabled={isBusy} />
+                <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} />
               </div>
             </div>
           ) : (
-            <PdfViewer key={`${file.name}-${file.size}-${file.lastModified}`} file={file} />
+            <>
+              <DocumentTabs
+                files={documents}
+                activeIndex={activeIndex}
+                onSelect={setActiveIndex}
+                onRemove={handleRemoveDocument}
+                disabled={isBusy}
+              />
+              <PdfViewer key={fileKey(activeFile)} file={activeFile} />
+            </>
           )}
         </section>
 
-        {/* Columna derecha: requisitos */}
+        {/* Columna derecha: requisitos consolidados */}
         <section
           className="flex min-h-[50vh] flex-1 flex-col overflow-y-auto lg:min-h-0 lg:w-1/2"
           style={{ background: "var(--bg-panel)" }}
         >
-          <RequisitosPanel status={status} result={result} error={error} onRetry={handleRetry} />
+          <RequisitosPanel
+            status={status}
+            result={result}
+            error={error}
+            onRetry={handleRetry}
+            documentCount={documents.length}
+            progressLabel={progressLabel}
+          />
         </section>
       </main>
     </div>
