@@ -1,12 +1,15 @@
 "use client";
 
-import type { Anexo2Fila } from "@/types/extraction";
+import type { Anexo2Fila, Anexo2Overrides, Anexo2OverridesMap } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 
 interface Anexo2PreviewProps {
   filas: Anexo2Fila[];
   tecnicos: Tecnico[];
   asignaciones: Record<number, string>;
+  overrides?: Anexo2OverridesMap;
+  editable?: boolean;
+  onOverrideChange?: (rowIndex: number, field: keyof Anexo2Overrides, value: string) => void;
 }
 
 const HEADERS = ["Nro", "Función", "Nombre", "Nivel de estudio", "Titulación académica"];
@@ -27,7 +30,14 @@ function titulacionLineas(tecnico?: Tecnico): string[] {
   return lineas;
 }
 
-export default function Anexo2Preview({ filas, tecnicos, asignaciones }: Anexo2PreviewProps) {
+export default function Anexo2Preview({
+  filas,
+  tecnicos,
+  asignaciones,
+  overrides = {},
+  editable = false,
+  onOverrideChange,
+}: Anexo2PreviewProps) {
   if (filas.length === 0) return null;
 
   return (
@@ -57,29 +67,40 @@ export default function Anexo2Preview({ filas, tecnicos, asignaciones }: Anexo2P
           <tbody>
             {filas.map((row, i) => {
               const tecnico = tecnicos.find((t) => t.id === asignaciones[i]);
-              const nivelLineas = nivelEstudioLineas(tecnico);
-              const tituloLineas = titulacionLineas(tecnico);
+              const overrideRow = overrides[i] ?? {};
+              const funcionValor = overrideRow.funcion ?? row.funcion ?? "";
+              const nombreValor = overrideRow.nombre ?? (tecnico ? `${i + 1}.1 ${tecnico.nombre}` : "");
+              const nivelValor = overrideRow.nivelEstudio ?? nivelEstudioLineas(tecnico).join("\n");
+              const tituloValor = overrideRow.titulacionAcademica ?? titulacionLineas(tecnico).join("\n");
+
               return (
                 <tr key={i}>
                   <td className="border px-3 py-3 align-top" style={{ borderColor: "#333" }}>
                     {i + 1}
                   </td>
-                  <td className="border px-3 py-3 align-top whitespace-pre-line" style={{ borderColor: "#333" }}>
-                    {row.funcion || ""}
-                  </td>
-                  <td className="border px-3 py-3 align-top" style={{ borderColor: "#333" }}>
-                    {tecnico ? `${i + 1}.1 ${tecnico.nombre}` : ""}
-                  </td>
-                  <td className="border px-3 py-3 align-top" style={{ borderColor: "#333" }}>
-                    {nivelLineas.map((linea, li) => (
-                      <div key={li}>{linea}</div>
-                    ))}
-                  </td>
-                  <td className="border px-3 py-3 align-top" style={{ borderColor: "#333" }}>
-                    {tituloLineas.map((linea, li) => (
-                      <div key={li}>{linea}</div>
-                    ))}
-                  </td>
+                  <EditableCell
+                    editable={editable}
+                    value={funcionValor}
+                    multiline
+                    onChange={(v) => onOverrideChange?.(i, "funcion", v)}
+                  />
+                  <EditableCell
+                    editable={editable}
+                    value={nombreValor}
+                    onChange={(v) => onOverrideChange?.(i, "nombre", v)}
+                  />
+                  <EditableCell
+                    editable={editable}
+                    value={nivelValor}
+                    multiline
+                    onChange={(v) => onOverrideChange?.(i, "nivelEstudio", v)}
+                  />
+                  <EditableCell
+                    editable={editable}
+                    value={tituloValor}
+                    multiline
+                    onChange={(v) => onOverrideChange?.(i, "titulacionAcademica", v)}
+                  />
                 </tr>
               );
             })}
@@ -87,5 +108,40 @@ export default function Anexo2Preview({ filas, tecnicos, asignaciones }: Anexo2P
         </table>
       </div>
     </div>
+  );
+}
+
+function EditableCell({
+  editable,
+  value,
+  multiline,
+  onChange,
+}: {
+  editable: boolean;
+  value: string;
+  multiline?: boolean;
+  onChange: (value: string) => void;
+}) {
+  if (!editable) {
+    return (
+      <td className="border px-3 py-3 align-top whitespace-pre-line" style={{ borderColor: "#333" }}>
+        {value.split("\n").map((linea, li) => (
+          <div key={li}>{linea}</div>
+        ))}
+      </td>
+    );
+  }
+
+  return (
+    <td className="border p-1 align-top" style={{ borderColor: "#333" }}>
+      <textarea
+        key={value}
+        defaultValue={value}
+        onBlur={(e) => onChange(e.target.value)}
+        rows={multiline ? 3 : 1}
+        className="w-full resize-none rounded p-1.5 text-sm outline-none"
+        style={{ color: "#e5e7eb", background: "#111", border: "1px solid #444" }}
+      />
+    </td>
   );
 }

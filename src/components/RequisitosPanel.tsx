@@ -1,6 +1,7 @@
 "use client";
 
-import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import { useState } from "react";
+import type { Anexo2Overrides, Anexo2OverridesMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
@@ -15,6 +16,8 @@ interface RequisitosPanelProps {
   tecnicos?: Tecnico[];
   asignaciones?: Record<number, string>;
   onAssignTecnico?: (rowIndex: number, tecnicoId: string) => void;
+  anexo2Overrides?: Anexo2OverridesMap;
+  onAnexo2OverrideChange?: (rowIndex: number, field: keyof Anexo2Overrides, value: string) => void;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -55,7 +58,12 @@ export default function RequisitosPanel({
   tecnicos = [],
   asignaciones = {},
   onAssignTecnico,
+  anexo2Overrides = {},
+  onAnexo2OverrideChange,
 }: RequisitosPanelProps) {
+  const [showPreview, setShowPreview] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+
   if (status === "idle") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
@@ -201,16 +209,27 @@ export default function RequisitosPanel({
 
       {/* Bloque B: Anexo 2 */}
       <section>
-        <div className="mb-4 flex items-center gap-2">
-          <span
-            className="flex h-5 w-5 items-center justify-center rounded text-[11px] font-semibold"
-            style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
-          >
-            2
-          </span>
-          <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Campos sugeridos — Anexo 2: Personal Técnico
-          </h1>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-5 w-5 items-center justify-center rounded text-[11px] font-semibold"
+              style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
+            >
+              2
+            </span>
+            <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              Campos sugeridos — Anexo 2: Personal Técnico
+            </h1>
+          </div>
+          {anexo2Sugerido.length > 0 && (
+            <button
+              onClick={() => setShowPreview(true)}
+              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+            >
+              Vista previa Anexo 2
+            </button>
+          )}
         </div>
 
         {anexo2Sugerido.length === 0 ? (
@@ -286,16 +305,62 @@ export default function RequisitosPanel({
             </table>
           </div>
         )}
-
-        {anexo2Sugerido.length > 0 && (
-          <div className="mt-5">
-            <h3 className="mb-2 text-[11px] font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--text-tertiary)" }}>
-              Vista previa — Anexo 2
-            </h3>
-            <Anexo2Preview filas={anexo2Sugerido} tecnicos={tecnicos} asignaciones={asignaciones} />
-          </div>
-        )}
       </section>
+
+      {showPreview && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setShowPreview(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Vista previa — Anexo 2
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setEditMode((v) => !v)}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{
+                    borderColor: editMode ? "var(--accent)" : "var(--border)",
+                    color: editMode ? "var(--accent-hover)" : "var(--text-secondary)",
+                  }}
+                >
+                  {editMode ? "Terminar edición" : "Editar todo"}
+                </button>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  aria-label="Cerrar"
+                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              <Anexo2Preview
+                filas={anexo2Sugerido}
+                tecnicos={tecnicos}
+                asignaciones={asignaciones}
+                overrides={anexo2Overrides}
+                editable={editMode}
+                onOverrideChange={onAnexo2OverrideChange}
+              />
+              {editMode && (
+                <p className="mt-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                  Los cambios se guardan automáticamente al salir de cada campo.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <hr style={{ borderColor: "var(--border)" }} />
 

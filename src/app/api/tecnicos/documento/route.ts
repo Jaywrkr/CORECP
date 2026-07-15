@@ -1,26 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readTecnicos, writeTecnicos } from "@/lib/tecnicosStore";
-import { eliminarDocumentoTecnico, guardarDocumentoTecnico } from "@/lib/tecnicoDocumentosStore";
+import { eliminarArchivoDocumentoTecnico, guardarArchivosDocumentoTecnico } from "@/lib/tecnicoDocumentosStore";
 
 export const runtime = "nodejs";
 
-const MAX_BYTES = 8 * 1024 * 1024;
+const MAX_BYTES_POR_ARCHIVO = 8 * 1024 * 1024;
 
 export async function POST(req: NextRequest) {
   try {
     const formData = await req.formData().catch(() => null);
     const id = formData?.get("id");
-    const file = formData?.get("file");
+    const tipo = formData?.get("tipo");
+    const files = formData?.getAll("files").filter((f): f is File => f instanceof File) ?? [];
 
-    if (typeof id !== "string" || !id || !(file instanceof File)) {
+    if (typeof id !== "string" || !id || typeof tipo !== "string" || !tipo.trim() || files.length === 0) {
       return NextResponse.json(
-        { error: "Falta el id del técnico o el archivo a subir." },
+        { error: "Falta el id del técnico, el tipo de documento o los archivos a subir." },
         { status: 400 },
       );
     }
 
-    if (file.size > MAX_BYTES) {
-      return NextResponse.json({ error: "El archivo supera el máximo de 8MB." }, { status: 413 });
+    const tooBig = files.find((f) => f.size > MAX_BYTES_POR_ARCHIVO);
+    if (tooBig) {
+      return NextResponse.json(
+        { error: `El archivo "${tooBig.name}" supera el máximo de 8MB.` },
+        { status: 413 },
+      );
     }
 
     const tecnicos = await readTecnicos();
@@ -29,13 +34,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "No se encontró el técnico." }, { status: 404 });
     }
 
-    const previousUrl = tecnicos[index].documentoUrl;
-    const { url, nombre } = await guardarDocumentoTecnico(id, file);
-    if (previousUrl && previousUrl !== url) {
-      await eliminarDocumentoTecnico(previousUrl);
-    }
-
-    tecnicos[index] = { ...tecnicos[index], documentoUrl: url, documentoNombre: nombre };
+    const subidos = await guardarArchivosDocumentoTecnico(id, tipo, files);
+    const documentosPrevios = tecnicos[index].documentos ?? {};
+    tecnicos[index] = {
+      ...tecnicos[index],
+      documentos: {
+        ...documentosPrevios,
+        [tipo]: [...(documentosPrevios[tipo] ?? []), ...subidos],
+      },
+    };
     await writeTecnicos(tecnicos);
 
     return NextResponse.json({ tecnicos });
@@ -51,8 +58,13 @@ export async function POST(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   try {
     const id = req.nextUrl.searchParams.get("id");
-    if (!id) {
-      return NextResponse.json({ error: "Falta el id del técnico." }, { status: 400 });
+    const tipo = req.nextUrl.searchParams.get("tipo");
+    const url = req.nextUrl.searchParams.get("url");
+    if (!id || !tipo) {
+      return NextResponse.json(
+        { error: "Falta el id del técnico o el tipo de documento." },
+        { status: 400 },
+      );
     }
 
     const tecnicos = await readTecnicos();
@@ -61,10 +73,26 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: "No se encontró el técnico." }, { status: 404 });
     }
 
-    const url = tecnicos[index].documentoUrl;
-    if (url) await eliminarDocumentoTecnico(url);
+    const documentos = { ...(tecnicos[index].documentos ?? {}) };
+    const archivos = documentos[tipo] ?? [];
 
-    tecnicos[index] = { ...tecnicos[index], documentoUrl: undefined, documentoNombre: undefined };
+    if (url) {
+      // Remove a single file from the group.
+      const archivo = archivos.find((a) => a.url === url);
+      if (archivo) await eliminarArchivoDocumentoTecnico(archivo.url);
+      const restantes = archivos.filter((a) => a.url !== url);
+      if (restantes.length > 0) {
+        documentos[tipo] = restantes;
+      } else {
+        delete documentos[tipo];
+      }
+    } else {
+      // Remove the whole group.
+      await Promise.all(archivos.map((a) => eliminarArchivoDocumentoTecnico(a.url)));
+      delete documentos[tipo];
+    }
+
+    tecnicos[index] = { ...tecnicos[index], documentos };
     await writeTecnicos(tecnicos);
 
     return NextResponse.json({ tecnicos });
