@@ -1,12 +1,14 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import UploadZone from "@/components/UploadZone";
 import DocumentTabs from "@/components/DocumentTabs";
 import RequisitosPanel from "@/components/RequisitosPanel";
+import TecnicosManager from "@/components/TecnicosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import type { Tecnico } from "@/types/tecnico";
 
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
   ssr: false,
@@ -28,6 +30,27 @@ export default function Home() {
   const [result, setResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progressLabel, setProgressLabel] = useState<string | null>(null);
+  const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
+  const [showTecnicos, setShowTecnicos] = useState(false);
+  const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    fetch("/api/tecnicos")
+      .then((res) => res.json())
+      .then((data) => setTecnicos(Array.isArray(data?.tecnicos) ? data.tecnicos : []))
+      .catch(() => setTecnicos([]));
+  }, []);
+
+  const handleAssignTecnico = useCallback((rowIndex: number, tecnicoId: string) => {
+    setAsignaciones((prev) => {
+      if (!tecnicoId) {
+        const next = { ...prev };
+        delete next[rowIndex];
+        return next;
+      }
+      return { ...prev, [rowIndex]: tecnicoId };
+    });
+  }, []);
 
   const runExtraction = useCallback(async (docs: File[]) => {
     if (docs.length === 0) {
@@ -35,12 +58,14 @@ export default function Home() {
       setResult(null);
       setError(null);
       setProgressLabel(null);
+      setAsignaciones({});
       return;
     }
 
     setStatus("uploading");
     setError(null);
     setResult(null);
+    setAsignaciones({});
 
     try {
       // Extract text for every document in the browser first — sending only
@@ -130,6 +155,7 @@ export default function Home() {
     setResult(null);
     setError(null);
     setProgressLabel(null);
+    setAsignaciones({});
   }, []);
 
   const handleRetry = useCallback(() => {
@@ -167,19 +193,36 @@ export default function Home() {
             </p>
           </div>
         </div>
-        {documents.length > 0 && (
-          <div className="flex items-center gap-2">
-            <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
-            <button
-              onClick={handleReset}
-              className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-            >
-              Empezar de nuevo
-            </button>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTecnicos(true)}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          >
+            Técnicos
+          </button>
+          {documents.length > 0 && (
+            <>
+              <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
+              <button
+                onClick={handleReset}
+                className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+              >
+                Empezar de nuevo
+              </button>
+            </>
+          )}
+        </div>
       </header>
+
+      {showTecnicos && (
+        <TecnicosManager
+          onClose={() => setShowTecnicos(false)}
+          tecnicos={tecnicos}
+          onTecnicosChange={setTecnicos}
+        />
+      )}
 
       <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Columna izquierda: PDF(s) */}
@@ -219,6 +262,9 @@ export default function Home() {
             onRetry={handleRetry}
             documentCount={documents.length}
             progressLabel={progressLabel}
+            tecnicos={tecnicos}
+            asignaciones={asignaciones}
+            onAssignTecnico={handleAssignTecnico}
           />
         </section>
       </main>
