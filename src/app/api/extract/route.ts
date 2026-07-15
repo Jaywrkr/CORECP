@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { PDFParse } from "pdf-parse";
 import type { ExtractionResult } from "@/types/extraction";
 
 export const runtime = "nodejs";
@@ -110,40 +109,29 @@ function normalizeResult(data: unknown): ExtractionResult {
 
 export async function POST(req: NextRequest) {
   try {
-    const formData = await req.formData();
-    const file = formData.get("file");
-
-    if (!file || !(file instanceof File)) {
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
       return NextResponse.json(
-        { error: "No se recibió ningún archivo PDF." },
+        { error: "La solicitud no tiene un cuerpo JSON válido." },
         { status: 400 },
       );
     }
 
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
+    const { text } = (body ?? {}) as { text?: unknown };
 
-    let pdfText: string;
-    try {
-      const parser = new PDFParse({ data: buffer });
-      const result = await parser.getText();
-      pdfText = result.text?.trim() ?? "";
-    } catch {
-      return NextResponse.json(
-        { error: "No se pudo leer el PDF. Verifica que el archivo no esté dañado o protegido." },
-        { status: 422 },
-      );
-    }
-
-    if (!pdfText) {
+    if (typeof text !== "string" || !text.trim()) {
       return NextResponse.json(
         {
           error:
-            "No se pudo extraer texto del PDF. Es posible que sea un documento escaneado (imagen) sin texto seleccionable.",
+            "No se recibió texto del pliego. Es posible que el PDF sea un documento escaneado (imagen) sin texto seleccionable.",
         },
         { status: 422 },
       );
     }
+
+    const pdfText = text.trim();
 
     const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) {

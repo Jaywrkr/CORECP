@@ -56,7 +56,7 @@ export default function RequisitosPanel({ status, result, error, onRetry }: Requ
           style={{ borderColor: "var(--border)", borderTopColor: "var(--accent)" }}
         />
         <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-          {status === "uploading" ? "Subiendo documento…" : "Analizando el pliego con Claude…"}
+          {status === "uploading" ? "Leyendo el texto del PDF…" : "Analizando el pliego con Claude…"}
         </p>
         <p className="text-xs" style={{ color: "var(--text-tertiary)" }}>
           Esto puede tardar hasta un minuto en documentos extensos.

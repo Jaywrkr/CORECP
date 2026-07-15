@@ -4,6 +4,7 @@ import { useCallback, useState } from "react";
 import dynamic from "next/dynamic";
 import UploadZone from "@/components/UploadZone";
 import RequisitosPanel from "@/components/RequisitosPanel";
+import { extractPdfText } from "@/lib/extractPdfText";
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
 
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -27,19 +28,43 @@ export default function Home() {
     setResult(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", pdfFile);
+      // Extract text in the browser first — sending only the text (not the
+      // raw PDF bytes) keeps the request well under hosting body-size limits
+      // and avoids uploading the file to the server at all.
+      let text: string;
+      try {
+        text = await extractPdfText(pdfFile);
+      } catch {
+        throw new Error(
+          "No se pudo leer el PDF. Verifica que el archivo no esté dañado o protegido.",
+        );
+      }
+
+      if (!text) {
+        throw new Error(
+          "No se pudo extraer texto del PDF. Es posible que sea un documento escaneado (imagen) sin texto seleccionable.",
+        );
+      }
 
       setStatus("extracting");
       const res = await fetch("/api/extract", {
         method: "POST",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
       });
 
-      const data = await res.json();
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch {
+        throw new Error(
+          `El servidor respondió de forma inesperada (código ${res.status}). Intenta de nuevo.`,
+        );
+      }
 
       if (!res.ok) {
-        throw new Error(data?.error || "Error al procesar el documento.");
+        const message = (data as { error?: string } | null)?.error;
+        throw new Error(message || "Error al procesar el documento.");
       }
 
       setResult(data as ExtractionResult);

@@ -11,9 +11,10 @@ sesiones.
 
 1. El usuario sube un PDF (el pliego) en la columna izquierda; se visualiza embebido
    y navegable.
-2. El PDF se envía a `/api/extract`, que extrae el texto (`pdf-parse`) y lo analiza
-   con la API de Claude (Anthropic) usando un prompt que fuerza una salida JSON
-   estructurada.
+2. El texto del PDF se extrae **en el navegador** (`pdfjs-dist`) — el archivo nunca
+   se sube al servidor. Solo el texto extraído se envía a `/api/extract`, que lo
+   analiza con la API de Claude (Anthropic) usando un prompt que fuerza una salida
+   JSON estructurada.
 3. La columna derecha muestra los requisitos detectados y los campos sugeridos para
    Anexo 2 y Anexo 3.
 
@@ -43,5 +44,6 @@ Abre [http://localhost:3000](http://localhost:3000).
 
 - Next.js (App Router) + TypeScript
 - `react-pdf` para la visualización del PDF
-- `pdf-parse` para extracción de texto en el servidor
+- `pdfjs-dist` para extraer el texto del PDF en el navegador (evita subir el
+  archivo completo y el límite de tamaño de payload de las funciones serverless)
 - `@anthropic-ai/sdk` para la extracción de requisitos vía Claude
