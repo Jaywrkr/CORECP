@@ -12,8 +12,12 @@ interface TecnicosManagerProps {
 const EMPTY_FORM: TecnicoInput = {
   nombre: "",
   cedula: "",
+  rol: "Técnico",
   tituloAcademico: "",
+  cuartoNivelTitulo: "",
   nivelEstudio: "",
+  fechaContrato: "",
+  fechaIngreso: "",
   certificaciones: [],
   notas: "",
 };
@@ -38,8 +42,12 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
     setForm({
       nombre: t.nombre,
       cedula: t.cedula,
+      rol: t.rol,
       tituloAcademico: t.tituloAcademico,
+      cuartoNivelTitulo: t.cuartoNivelTitulo ?? "",
       nivelEstudio: t.nivelEstudio,
+      fechaContrato: t.fechaContrato ?? "",
+      fechaIngreso: t.fechaIngreso ?? "",
       certificaciones: t.certificaciones,
       notas: t.notas ?? "",
       certificacionesText: t.certificaciones.join(", "),
@@ -63,8 +71,12 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
     const payload = {
       nombre: form.nombre.trim(),
       cedula: form.cedula.trim(),
+      rol: form.rol.trim() || "Técnico",
       tituloAcademico: form.tituloAcademico.trim(),
+      cuartoNivelTitulo: form.cuartoNivelTitulo?.trim() || undefined,
       nivelEstudio: form.nivelEstudio.trim(),
+      fechaContrato: form.fechaContrato?.trim() || undefined,
+      fechaIngreso: form.fechaIngreso?.trim() || undefined,
       certificaciones: form.certificacionesText
         .split(",")
         .map((c) => c.trim())
@@ -154,13 +166,31 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
                   required
                 />
               </Field>
-              <Field label="Título académico">
+              <Field label="Rol">
+                <input
+                  value={form.rol}
+                  onChange={(e) => setForm((f) => ({ ...f, rol: e.target.value }))}
+                  className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                  style={inputStyle}
+                  placeholder="ej. Técnico"
+                />
+              </Field>
+              <Field label="Título académico (tercer nivel)">
                 <input
                   value={form.tituloAcademico}
                   onChange={(e) => setForm((f) => ({ ...f, tituloAcademico: e.target.value }))}
                   className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
                   style={inputStyle}
                   placeholder="ej. Ingeniería Civil"
+                />
+              </Field>
+              <Field label="Cuarto nivel de título (maestría)">
+                <input
+                  value={form.cuartoNivelTitulo}
+                  onChange={(e) => setForm((f) => ({ ...f, cuartoNivelTitulo: e.target.value }))}
+                  className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                  style={inputStyle}
+                  placeholder="ej. Máster en Telecomunicaciones"
                 />
               </Field>
               <Field label="Nivel de estudio">
@@ -170,6 +200,24 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
                   className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
                   style={inputStyle}
                   placeholder="ej. Tercer Nivel"
+                />
+              </Field>
+              <Field label="Fecha de contrato">
+                <input
+                  type="date"
+                  value={form.fechaContrato}
+                  onChange={(e) => setForm((f) => ({ ...f, fechaContrato: e.target.value }))}
+                  className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                  style={inputStyle}
+                />
+              </Field>
+              <Field label="Fecha de ingreso">
+                <input
+                  type="date"
+                  value={form.fechaIngreso}
+                  onChange={(e) => setForm((f) => ({ ...f, fechaIngreso: e.target.value }))}
+                  className="rounded-md border px-2.5 py-1.5 text-sm outline-none focus:border-[var(--accent)]"
+                  style={inputStyle}
                 />
               </Field>
               <Field label="Certificaciones (separadas por coma)">
@@ -234,11 +282,17 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
                   style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
                 >
                   <div className="min-w-0">
-                    <div style={{ color: "var(--text-primary)" }}>{t.nombre}</div>
+                    <div style={{ color: "var(--text-primary)" }}>
+                      {t.nombre}
+                      {t.rol ? ` · ${t.rol}` : ""}
+                    </div>
                     <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
                       CI {t.cedula}
                       {t.tituloAcademico ? ` · ${t.tituloAcademico}` : ""}
+                      {t.cuartoNivelTitulo ? ` · ${t.cuartoNivelTitulo}` : ""}
                       {t.nivelEstudio ? ` · ${t.nivelEstudio}` : ""}
+                      {t.fechaIngreso ? ` · Ingreso: ${t.fechaIngreso}` : ""}
+                      {t.fechaContrato ? ` · Contrato: ${t.fechaContrato}` : ""}
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
