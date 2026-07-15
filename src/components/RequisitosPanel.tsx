@@ -114,8 +114,10 @@ export default function RequisitosPanel({
 
   if (!result) return null;
 
-  const { requisitos, anexo2Sugerido, anexo3Sugerido } = result;
+  const { requisitos, fechasClave, anexo2Sugerido, anexo3Sugerido } = result;
   const hasAnyRequisitos = CATEGORY_LABELS.some((c) => requisitos[c.key].length > 0);
+  const hasFechasClave =
+    !!fechasClave && (fechasClave.presentacionOferta || fechasClave.puja || fechasClave.adjudicacion);
 
   return (
     <div className="flex flex-col gap-8 px-5 py-5">
@@ -124,6 +126,25 @@ export default function RequisitosPanel({
           Análisis consolidado de {documentCount} documentos — la información repetida entre archivos
           se combinó en una sola vista.
         </p>
+      )}
+
+      {hasFechasClave && (
+        <section
+          className="rounded-md border p-4"
+          style={{ borderColor: "var(--accent)", background: "var(--accent-soft)" }}
+        >
+          <h2
+            className="mb-3 text-[11px] font-semibold tracking-[0.08em] uppercase"
+            style={{ color: "var(--accent-hover)" }}
+          >
+            Fechas clave del proceso
+          </h2>
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <FechaClaveItem label="Presentación de oferta" value={fechasClave.presentacionOferta} />
+            <FechaClaveItem label="Puja / subasta inversa" value={fechasClave.puja} />
+            <FechaClaveItem label="Adjudicación" value={fechasClave.adjudicacion} />
+          </dl>
+        </section>
       )}
 
       {/* Bloque A: requisitos detectados */}
@@ -341,6 +362,22 @@ export default function RequisitosPanel({
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+function FechaClaveItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="mb-0.5 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+        {label}
+      </dt>
+      <dd
+        className={`text-sm font-medium ${value ? "" : "italic"}`}
+        style={{ color: value ? "var(--text-primary)" : "var(--text-tertiary)" }}
+      >
+        {value || "No especificada"}
+      </dd>
     </div>
   );
 }

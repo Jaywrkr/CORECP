@@ -4,10 +4,10 @@ Herramienta interna de Coresolutions para extraer y visualizar requisitos técni
 de pliegos de compras públicas, como base para completar Anexo 2 (Personal Técnico)
 y Anexo 3 (Experiencia del Personal Técnico).
 
-Esta fase **solo extrae y visualiza** — no genera documentos, y los pliegos
-subidos ni los resultados del análisis se guardan entre sesiones. La única
-excepción es el roster de **técnicos** (ver más abajo), que sí persiste para
-poder reutilizarlo entre sesiones y usuarios.
+Esta fase **solo extrae y visualiza** — no genera documentos. Los PDFs en sí
+nunca se guardan, pero **sí persisten** (en Vercel Blob, no solo en el navegador)
+tanto el roster de **técnicos** como el resultado del análisis por **número de
+proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 
 ## Cómo funciona
 
@@ -28,6 +28,16 @@ poder reutilizarlo entre sesiones y usuarios.
    de forma persistente en Vercel Blob. En cada fila del Anexo 2 se puede asignar
    un técnico del roster al perfil detectado, autocompletando el campo "Nombre" y
    avisando si el título del técnico no coincide con el requerido.
+5. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
+   (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
+   cuando el pliego las indique.
+6. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
+   (campo editable en la barra superior; se intenta autodetectar del propio
+   texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si vuelves a subir
+   documentos del mismo proceso, el resultado se carga desde el caché **sin
+   volver a llamar a Claude** — el badge "Cargado desde caché" lo indica, con
+   un botón "Reanalizar con IA" para forzar un análisis nuevo (por ejemplo, si
+   el pliego cambió).
 
 ## Desarrollo local
 
@@ -44,7 +54,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | Variable               | Descripción                                                        |
 | ---------------------- | ------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`    | API key de Anthropic usada por `/api/extract`.                     |
-| `BLOB_READ_WRITE_TOKEN`| Token de Vercel Blob usado por `/api/tecnicos` para leer/escribir el roster de técnicos. Se inyecta automáticamente al conectar un Blob Store al proyecto (ver despliegue abajo) — no hace falta configurarlo a mano en Vercel, pero sí en local. |
+| `BLOB_READ_WRITE_TOKEN`| Token de Vercel Blob usado por `/api/tecnicos` (roster de técnicos) y `/api/procesos` (caché de análisis por proceso). Se inyecta automáticamente al conectar un Blob Store al proyecto (ver despliegue abajo) — no hace falta configurarlo a mano en Vercel, pero sí en local. |
 
 ## Despliegue en Vercel
 
@@ -52,13 +62,14 @@ Abre [http://localhost:3000](http://localhost:3000).
 2. Configura la variable de entorno `ANTHROPIC_API_KEY` en el proyecto.
 3. Ve a la pestaña **Storage** del proyecto → **Create Database** → **Blob** →
    conéctalo al proyecto. Esto agrega automáticamente `BLOB_READ_WRITE_TOKEN`
-   como variable de entorno (necesario para que el roster de técnicos persista).
+   como variable de entorno (necesario para que persistan el roster de
+   técnicos y el caché de análisis por proceso).
 4. Despliega (o redeploy si el proyecto ya existía) para que las variables de
    entorno nuevas se apliquen.
 
 Para desarrollo local, copia el mismo `BLOB_READ_WRITE_TOKEN` del proyecto en
 Vercel a tu `.env.local` (Settings → Environment Variables) — sin él, `/api/tecnicos`
-responde con un error claro en vez de fallar en silencio.
+y `/api/procesos` responden con un error claro en vez de fallar en silencio.
 
 ## Stack
 
@@ -67,4 +78,5 @@ responde con un error claro en vez de fallar en silencio.
 - `pdfjs-dist` para extraer el texto del PDF en el navegador (evita subir el
   archivo completo y el límite de tamaño de payload de las funciones serverless)
 - `@anthropic-ai/sdk` para la extracción de requisitos vía Claude
-- `@vercel/blob` para persistir el roster de técnicos como un único documento JSON
+- `@vercel/blob` para persistir el roster de técnicos y el caché de análisis
+  por proceso, cada uno como documentos JSON
