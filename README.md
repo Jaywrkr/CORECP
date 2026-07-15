@@ -33,10 +33,15 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
    quitar un documento invalida el análisis anterior y requiere presionar
    "Analizar" de nuevo.
 5. En el botón **Técnicos** del encabezado se administra un roster de técnicos
-   (nombre, cédula, título académico, nivel de estudio, certificaciones), guardado
-   de forma persistente en Vercel Blob. En cada fila del Anexo 2 se puede asignar
-   un técnico del roster al perfil detectado, autocompletando el campo "Nombre" y
-   avisando si el título del técnico no coincide con el requerido.
+   (nombre, cédula, rol, título de tercer nivel, cuarto nivel/maestría, nivel de
+   estudio, fecha de contrato, fecha de ingreso, certificaciones), guardado de
+   forma persistente en Vercel Blob. Cada técnico puede tener un documento
+   adjunto (ej. título registrado en SENESCYT, imagen o PDF) con vista previa
+   integrada (sin salir de la app). En cada fila del Anexo 2 se puede asignar
+   un técnico del roster al perfil detectado, autocompletando el campo "Nombre"
+   y avisando si el título del técnico no coincide con el requerido — la
+   comparación tolera variantes de redacción y no avisa cuando el pliego acepta
+   "afines".
 6. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
    (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
    cuando el pliego las indique.

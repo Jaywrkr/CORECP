@@ -36,6 +36,7 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; nombre: string } | null>(null);
 
   const startEdit = (t: Tecnico) => {
     setEditingId(t.id);
@@ -96,6 +97,41 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
       cancelEdit();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido al guardar.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleUploadDocumento = async (tecnicoId: string, file: File) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.append("id", tecnicoId);
+      formData.append("file", file);
+      const res = await fetch("/api/tecnicos/documento", { method: "POST", body: formData });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "No se pudo subir el documento.");
+      onTecnicosChange(data.tecnicos);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido al subir el documento.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveDocumento = async (tecnicoId: string) => {
+    setSaving(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/tecnicos/documento?id=${encodeURIComponent(tecnicoId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "No se pudo eliminar el documento.");
+      onTecnicosChange(data.tecnicos);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido al eliminar el documento.");
     } finally {
       setSaving(false);
     }
@@ -296,6 +332,43 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
                     </div>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">
+                    {t.documentoUrl ? (
+                      <>
+                        <button
+                          onClick={() => setPreview({ url: t.documentoUrl!, nombre: t.documentoNombre || "documento" })}
+                          className="rounded px-2 py-1 text-xs hover:bg-white/5"
+                          style={{ color: "var(--accent-hover)" }}
+                        >
+                          Ver documento
+                        </button>
+                        <button
+                          onClick={() => handleRemoveDocumento(t.id)}
+                          disabled={saving}
+                          className="rounded px-2 py-1 text-xs hover:bg-white/5"
+                          style={{ color: "var(--text-tertiary)" }}
+                        >
+                          Quitar
+                        </button>
+                      </>
+                    ) : (
+                      <label
+                        className="cursor-pointer rounded px-2 py-1 text-xs hover:bg-white/5"
+                        style={{ color: "var(--text-secondary)" }}
+                      >
+                        Subir documento
+                        <input
+                          type="file"
+                          accept="application/pdf,image/*"
+                          disabled={saving}
+                          className="hidden"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) void handleUploadDocumento(t.id, file);
+                            e.target.value = "";
+                          }}
+                        />
+                      </label>
+                    )}
                     <button
                       onClick={() => startEdit(t)}
                       className="rounded px-2 py-1 text-xs hover:bg-white/5"
@@ -318,6 +391,42 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
           )}
         </div>
       </div>
+
+      {preview && (
+        <div
+          className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setPreview(null)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[90vh] max-w-3xl flex-col overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
+          >
+            <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
+              <span className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
+                {preview.nombre}
+              </span>
+              <button
+                onClick={() => setPreview(null)}
+                aria-label="Cerrar vista previa"
+                className="rounded px-2 py-1 text-sm hover:bg-white/5"
+                style={{ color: "var(--text-tertiary)" }}
+              >
+                ×
+              </button>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-3">
+              {/\.pdf$/i.test(preview.nombre) ? (
+                <iframe src={preview.url} title={preview.nombre} className="h-[75vh] w-[70vw] rounded" />
+              ) : (
+                // eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL, not a local/optimizable asset
+                <img src={preview.url} alt={preview.nombre} className="max-h-[75vh] max-w-full rounded" />
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
