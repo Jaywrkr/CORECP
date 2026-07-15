@@ -13,14 +13,29 @@ function parseTecnicoInput(body: unknown): Omit<Tecnico, "id"> | null {
   const cedula = typeof b.cedula === "string" ? b.cedula.trim() : "";
   if (!nombre || !cedula) return null;
 
+  const rol = typeof b.rol === "string" && b.rol.trim() ? b.rol.trim() : "Técnico";
   const tituloAcademico = typeof b.tituloAcademico === "string" ? b.tituloAcademico.trim() : "";
+  const cuartoNivelTitulo = typeof b.cuartoNivelTitulo === "string" ? b.cuartoNivelTitulo.trim() || undefined : undefined;
   const nivelEstudio = typeof b.nivelEstudio === "string" ? b.nivelEstudio.trim() : "";
+  const fechaContrato = typeof b.fechaContrato === "string" ? b.fechaContrato.trim() || undefined : undefined;
+  const fechaIngreso = typeof b.fechaIngreso === "string" ? b.fechaIngreso.trim() || undefined : undefined;
   const certificaciones = Array.isArray(b.certificaciones)
     ? b.certificaciones.filter((c): c is string => typeof c === "string" && c.trim().length > 0).map((c) => c.trim())
     : [];
-  const notas = typeof b.notas === "string" ? b.notas.trim() : undefined;
+  const notas = typeof b.notas === "string" ? b.notas.trim() || undefined : undefined;
 
-  return { nombre, cedula, tituloAcademico, nivelEstudio, certificaciones, notas };
+  return {
+    nombre,
+    cedula,
+    rol,
+    tituloAcademico,
+    cuartoNivelTitulo,
+    nivelEstudio,
+    fechaContrato,
+    fechaIngreso,
+    certificaciones,
+    notas,
+  };
 }
 
 export async function GET() {
