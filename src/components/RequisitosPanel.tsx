@@ -2,6 +2,7 @@
 
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
+import Anexo2Preview from "./Anexo2Preview";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -287,6 +288,15 @@ export default function RequisitosPanel({
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {anexo2Sugerido.length > 0 && (
+          <div className="mt-5">
+            <h3 className="mb-2 text-[11px] font-semibold tracking-[0.08em] uppercase" style={{ color: "var(--text-tertiary)" }}>
+              Vista previa — Anexo 2
+            </h3>
+            <Anexo2Preview filas={anexo2Sugerido} tecnicos={tecnicos} asignaciones={asignaciones} />
           </div>
         )}
       </section>
