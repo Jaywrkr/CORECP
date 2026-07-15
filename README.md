@@ -11,40 +11,51 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 
 ## Cómo funciona
 
-1. El usuario sube uno o más PDFs (el pliego, o varios documentos del mismo proceso)
-   en la columna izquierda; cada uno se visualiza embebido y navegable, con pestañas
-   para cambiar entre ellos si hay más de uno.
-2. El texto de cada PDF se extrae **en el navegador** (`pdfjs-dist`) — los archivos
-   nunca se suben al servidor. Solo el texto extraído de todos los documentos se
-   envía en una sola solicitud a `/api/extract`, que lo analiza con la API de Claude
-   (Anthropic) usando un prompt que fuerza una salida JSON estructurada.
-3. La columna derecha muestra **un único resultado consolidado**: si el mismo
+1. La pantalla de inicio (`/`) es un **buscador de procesos**: un campo de
+   búsqueda (por nombre o número) y, debajo, la lista de todos los procesos ya
+   analizados (guardados en Vercel Blob). El botón **"+ Nuevo proceso"** lleva
+   a la pantalla de análisis; hacer clic en un proceso de la lista lo reabre
+   sin volver a usar IA.
+2. En `/analizar` se suben uno o más PDFs (el pliego, o varios documentos del
+   mismo proceso) en la columna izquierda; cada uno se visualiza embebido y
+   navegable, con pestañas para cambiar entre ellos si hay más de uno.
+   **Subir un archivo no dispara el análisis automáticamente** — hay que
+   presionar el botón **"Analizar"**.
+3. Al presionar "Analizar", el texto de cada PDF se extrae **en el navegador**
+   (`pdfjs-dist`) — los archivos nunca se suben al servidor. Solo el texto
+   extraído de todos los documentos se envía en una sola solicitud a
+   `/api/extract`, que lo analiza con la API de Claude (Anthropic) usando un
+   prompt que fuerza una salida JSON estructurada.
+4. La columna derecha muestra **un único resultado consolidado**: si el mismo
    requisito o perfil aparece repetido entre documentos (o dentro del mismo
    documento), se combina en una sola entrada — tanto por instrucción explícita al
-   modelo como por una limpieza de duplicados exactos en el servidor. Al agregar o
-   quitar un documento, el análisis se vuelve a consolidar automáticamente.
-4. En el botón **Técnicos** del encabezado se administra un roster de técnicos
+   modelo como por una limpieza de duplicados exactos en el servidor. Agregar o
+   quitar un documento invalida el análisis anterior y requiere presionar
+   "Analizar" de nuevo.
+5. En el botón **Técnicos** del encabezado se administra un roster de técnicos
    (nombre, cédula, título académico, nivel de estudio, certificaciones), guardado
    de forma persistente en Vercel Blob. En cada fila del Anexo 2 se puede asignar
    un técnico del roster al perfil detectado, autocompletando el campo "Nombre" y
    avisando si el título del técnico no coincide con el requerido.
-5. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
+6. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
    (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
    cuando el pliego las indique.
-6. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
+7. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
    (campo editable en la barra superior; se intenta autodetectar del propio
-   texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si vuelves a subir
-   documentos del mismo proceso, el resultado se carga desde el caché **sin
-   volver a llamar a Claude** — el badge "Cargado desde caché" lo indica, con
-   un botón "Reanalizar con IA" para forzar un análisis nuevo (por ejemplo, si
-   el pliego cambió).
-7. Cada proceso guardado recibe además un **nombre automático de proyecto**
-   con el formato `CLIENTE-AÑOMESDIA-DESCRIPCION` (ej.
-   `ETAPA EP-260716-STORAGE Y VMS`), generado a partir de la entidad
-   contratante y el objeto de contratación detectados por el modelo, más la
-   fecha del análisis. En el botón **Procesos** del encabezado se abre un
-   menú con todos los procesos guardados (nombre, número, fecha, documentos)
-   para reabrir cualquiera de ellos — sin volver a usar IA — o eliminarlo.
+   texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si no hay número
+   detectable, se usa como clave el **nombre automático de proyecto**
+   (`CLIENTE-AÑOMESDIA-DESCRIPCION`, ej. `ETAPA-260716-STORAGE Y VMS`),
+   generado a partir de la entidad contratante y el objeto de contratación que
+   detecta el modelo. Si vuelves a analizar el mismo proceso, el resultado se
+   carga desde el caché **sin volver a llamar a Claude** — el badge "Cargado
+   desde caché" lo indica, con un botón "Reanalizar con IA" para forzar un
+   análisis nuevo (por ejemplo, si el pliego cambió).
+8. El botón **"← Volver"** regresa al buscador de procesos. Si el análisis
+   actual todavía no se ha guardado en la base de datos, intenta guardarlo
+   antes de salir; si el guardado falla, muestra una advertencia antes de
+   dejar la página para no perder el trabajo en silencio. Un badge junto al
+   número de proceso indica el estado: "Guardando…", "Guardado ✓" o "Error al
+   guardar" (con opción de reintentar).
 
 ## Desarrollo local
 
@@ -61,6 +72,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | Variable               | Descripción                                                        |
 | ---------------------- | ------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`    | API key de Anthropic usada por `/api/extract`.                     |
+| `ANTHROPIC_MODEL`      | Opcional. Modelo de Claude a usar (por defecto `claude-haiku-4-5-20251001`, económico para pruebas). Cambia a `claude-sonnet-5` u otro modelo para producción. |
 | `BLOB_READ_WRITE_TOKEN`| Token de Vercel Blob usado por `/api/tecnicos` (roster de técnicos) y `/api/procesos` (caché de análisis por proceso). Se inyecta automáticamente al conectar un Blob Store al proyecto (ver despliegue abajo) — no hace falta configurarlo a mano en Vercel, pero sí en local. |
 
 ## Despliegue en Vercel
