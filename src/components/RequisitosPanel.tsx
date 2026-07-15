@@ -1,6 +1,7 @@
 "use client";
 
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import type { Tecnico } from "@/types/tecnico";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -9,6 +10,9 @@ interface RequisitosPanelProps {
   onRetry?: () => void;
   documentCount?: number;
   progressLabel?: string | null;
+  tecnicos?: Tecnico[];
+  asignaciones?: Record<number, string>;
+  onAssignTecnico?: (rowIndex: number, tecnicoId: string) => void;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -46,6 +50,9 @@ export default function RequisitosPanel({
   onRetry,
   documentCount = 0,
   progressLabel,
+  tecnicos = [],
+  asignaciones = {},
+  onAssignTecnico,
 }: RequisitosPanelProps) {
   if (status === "idle") {
     return (
@@ -196,17 +203,65 @@ export default function RequisitosPanel({
                 </tr>
               </thead>
               <tbody>
-                {anexo2Sugerido.map((row, i) => (
-                  <tr key={i} style={{ borderTop: "1px solid var(--border-subtle)" }}>
-                    <Td muted>{i + 1}</Td>
-                    <Td>{row.funcion || "—"}</Td>
-                    <Td muted italic>
-                      (por completar)
-                    </Td>
-                    <Td>{row.nivelEstudio || "—"}</Td>
-                    <Td>{row.titulacionAcademica || "—"}</Td>
-                  </tr>
-                ))}
+                {anexo2Sugerido.map((row, i) => {
+                  const asignadoId = asignaciones[i] ?? "";
+                  const tecnicoAsignado = tecnicos.find((t) => t.id === asignadoId);
+                  const tituloNoCoincide =
+                    tecnicoAsignado &&
+                    row.titulacionAcademica &&
+                    tecnicoAsignado.tituloAcademico &&
+                    !tecnicoAsignado.tituloAcademico
+                      .toLowerCase()
+                      .includes(row.titulacionAcademica.toLowerCase()) &&
+                    !row.titulacionAcademica
+                      .toLowerCase()
+                      .includes(tecnicoAsignado.tituloAcademico.toLowerCase());
+
+                  return (
+                    <tr key={i} style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                      <Td muted>{i + 1}</Td>
+                      <Td>{row.funcion || "—"}</Td>
+                      <Td>
+                        {onAssignTecnico ? (
+                          tecnicos.length === 0 ? (
+                            <span className="italic" style={{ color: "var(--text-tertiary)" }}>
+                              (por completar)
+                            </span>
+                          ) : (
+                            <div className="flex flex-col gap-1">
+                              <select
+                                value={asignadoId}
+                                onChange={(e) => onAssignTecnico(i, e.target.value)}
+                                className="w-full rounded border bg-transparent px-1.5 py-1 text-sm"
+                                style={{ borderColor: "var(--border-subtle)", color: "var(--text-primary)" }}
+                              >
+                                <option value="" style={{ color: "black" }}>
+                                  (por completar)
+                                </option>
+                                {tecnicos.map((t) => (
+                                  <option key={t.id} value={t.id} style={{ color: "black" }}>
+                                    {t.nombre}
+                                  </option>
+                                ))}
+                              </select>
+                              {tituloNoCoincide && (
+                                <span className="text-[11px]" style={{ color: "var(--danger)" }}>
+                                  Título del técnico no coincide con el requerido
+                                </span>
+                              )}
+                            </div>
+                          )
+                        ) : (
+                          <span className="italic" style={{ color: "var(--text-tertiary)" }}>
+                            (por completar)
+                          </span>
+                        )}
+                      </Td>
+                      <Td>{row.nivelEstudio || "—"}</Td>
+                      <Td>{row.titulacionAcademica || "—"}</Td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -233,14 +288,26 @@ export default function RequisitosPanel({
           <EmptyState message="No se identificaron requisitos de experiencia para el Anexo 3." />
         ) : (
           <div className="flex flex-col gap-3">
-            {anexo3Sugerido.map((row, i) => (
+            {anexo3Sugerido.map((row, i) => {
+              const tecnicoAsignado = tecnicos.find((t) => t.id === asignaciones[i]);
+              return (
               <div
                 key={i}
                 className="rounded-md border p-3.5"
                 style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
               >
-                <div className="mb-2 text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                  {row.personal || `Perfil ${i + 1}`}
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                    {row.personal || `Perfil ${i + 1}`}
+                  </span>
+                  {tecnicoAsignado && (
+                    <span
+                      className="rounded px-2 py-0.5 text-[11px] font-medium"
+                      style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
+                    >
+                      {tecnicoAsignado.nombre}
+                    </span>
+                  )}
                 </div>
                 <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-3">
                   <div className="sm:col-span-3">
@@ -269,7 +336,8 @@ export default function RequisitosPanel({
                   </div>
                 </dl>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </section>
