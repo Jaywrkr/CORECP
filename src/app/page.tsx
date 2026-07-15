@@ -6,6 +6,7 @@ import UploadZone from "@/components/UploadZone";
 import DocumentTabs from "@/components/DocumentTabs";
 import RequisitosPanel from "@/components/RequisitosPanel";
 import TecnicosManager from "@/components/TecnicosManager";
+import ProcesosManager from "@/components/ProcesosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import { detectProcessCode } from "@/lib/detectProcessCode";
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
@@ -35,9 +36,11 @@ export default function Home() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [showTecnicos, setShowTecnicos] = useState(false);
+  const [showProcesos, setShowProcesos] = useState(false);
   const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
 
   const [numeroProceso, setNumeroProceso] = useState("");
+  const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
   const [fromCache, setFromCache] = useState(false);
   const [cacheUpdatedAt, setCacheUpdatedAt] = useState<string | null>(null);
 
@@ -69,6 +72,7 @@ export default function Home() {
         setAsignaciones({});
         setFromCache(false);
         setCacheUpdatedAt(null);
+        setNombreProyecto(null);
         return;
       }
 
@@ -78,6 +82,7 @@ export default function Home() {
       setAsignaciones({});
       setFromCache(false);
       setCacheUpdatedAt(null);
+      setNombreProyecto(null);
 
       try {
         // Extract text for every document in the browser first — sending only
@@ -130,6 +135,7 @@ export default function Home() {
               setResult(cacheData.proceso.result);
               setFromCache(true);
               setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
+              setNombreProyecto(cacheData.proceso.nombreProyecto);
               setStatus("done");
               setProgressLabel(null);
               return;
@@ -175,7 +181,12 @@ export default function Home() {
               result: data,
               documentos: extracted.map((d) => d.filename),
             }),
-          }).catch(() => {});
+          })
+            .then((res) => res.json())
+            .then((saved: { proceso?: ProcesoCache }) => {
+              if (saved?.proceso?.nombreProyecto) setNombreProyecto(saved.proceso.nombreProyecto);
+            })
+            .catch(() => {});
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
@@ -217,8 +228,23 @@ export default function Home() {
     setProgressLabel(null);
     setAsignaciones({});
     setNumeroProceso("");
+    setNombreProyecto(null);
     setFromCache(false);
     setCacheUpdatedAt(null);
+  }, []);
+
+  const handleOpenProceso = useCallback((proceso: ProcesoCache) => {
+    setDocuments([]);
+    setActiveIndex(0);
+    setError(null);
+    setProgressLabel(null);
+    setAsignaciones({});
+    setNumeroProceso(proceso.numeroProceso);
+    setNombreProyecto(proceso.nombreProyecto);
+    setResult(proceso.result);
+    setFromCache(true);
+    setCacheUpdatedAt(proceso.actualizadoEn);
+    setStatus("done");
   }, []);
 
   const handleRetry = useCallback(() => {
@@ -231,6 +257,7 @@ export default function Home() {
 
   const isBusy = status === "uploading" || status === "extracting";
   const activeFile = documents[activeIndex] ?? null;
+  const hasContent = documents.length > 0 || result !== null;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -262,6 +289,13 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowProcesos(true)}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          >
+            Procesos
+          </button>
+          <button
             onClick={() => setShowTecnicos(true)}
             className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
             style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
@@ -269,16 +303,16 @@ export default function Home() {
             Técnicos
           </button>
           {documents.length > 0 && (
-            <>
-              <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
-              <button
-                onClick={handleReset}
-                className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-              >
-                Empezar de nuevo
-              </button>
-            </>
+            <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
+          )}
+          {hasContent && (
+            <button
+              onClick={handleReset}
+              className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+            >
+              Empezar de nuevo
+            </button>
           )}
         </div>
       </header>
@@ -291,7 +325,11 @@ export default function Home() {
         />
       )}
 
-      {documents.length > 0 && (
+      {showProcesos && (
+        <ProcesosManager onClose={() => setShowProcesos(false)} onOpenProceso={handleOpenProceso} />
+      )}
+
+      {hasContent && (
         <div
           className="flex flex-wrap items-center gap-3 border-b px-6 py-2.5"
           style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
@@ -307,6 +345,16 @@ export default function Home() {
               style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)" }}
             />
           </label>
+
+          {nombreProyecto && (
+            <span
+              className="rounded px-2 py-0.5 text-[11px] font-medium"
+              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
+              title="Nombre de proyecto generado automáticamente: CLIENTE-AÑOMESDIA-DESCRIPCIÓN"
+            >
+              {nombreProyecto}
+            </span>
+          )}
 
           {fromCache && (
             <>
@@ -338,6 +386,12 @@ export default function Home() {
           {!activeFile ? (
             <div className="flex flex-1 items-center justify-center p-6">
               <div className="w-full max-w-md">
+                {result && !documents.length ? (
+                  <p className="mb-4 text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    Este proceso se cargó desde el caché — el PDF original no se guarda, solo el
+                    resultado. Sube el pliego de nuevo si necesitas visualizarlo.
+                  </p>
+                ) : null}
                 <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} />
               </div>
             </div>

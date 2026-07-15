@@ -28,9 +28,15 @@ export interface FechasClave {
   adjudicacion: string;
 }
 
+export interface Identificacion {
+  cliente: string;
+  descripcion: string;
+}
+
 export interface ExtractionResult {
   requisitos: RequisitosDetectados;
   fechasClave: FechasClave;
+  identificacion: Identificacion;
   anexo2Sugerido: Anexo2Fila[];
   anexo3Sugerido: Anexo3Fila[];
 }

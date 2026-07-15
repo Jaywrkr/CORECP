@@ -38,6 +38,13 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
    volver a llamar a Claude** — el badge "Cargado desde caché" lo indica, con
    un botón "Reanalizar con IA" para forzar un análisis nuevo (por ejemplo, si
    el pliego cambió).
+7. Cada proceso guardado recibe además un **nombre automático de proyecto**
+   con el formato `CLIENTE-AÑOMESDIA-DESCRIPCION` (ej.
+   `ETAPA EP-260716-STORAGE Y VMS`), generado a partir de la entidad
+   contratante y el objeto de contratación detectados por el modelo, más la
+   fecha del análisis. En el botón **Procesos** del encabezado se abre un
+   menú con todos los procesos guardados (nombre, número, fecha, documentos)
+   para reabrir cualquiera de ellos — sin volver a usar IA — o eliminarlo.
 
 ## Desarrollo local
 

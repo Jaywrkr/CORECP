@@ -11,10 +11,15 @@ Puedes recibir uno o más documentos en la misma solicitud (por ejemplo: el mism
 
 Tu tarea: leer TODOS los documentos recibidos y producir UN SOLO resultado consolidado (nunca un resultado por documento) con:
 
+- La identificación del proceso: entidad contratante (cliente) y una descripción corta del objeto de contratación.
 - Las fechas y horas clave del proceso: presentación de ofertas, puja (subasta inversa) y adjudicación.
 - La información relevante para completar dos anexos administrativos:
   - Anexo 2: Personal Técnico (Función, Nombre, Nivel de estudio, Titulación académica)
   - Anexo 3: Experiencia del Personal Técnico (Personal, Cliente - Fecha de Acta/Factura, Proyecto, Monto)
+
+Reglas para la identificación del proceso:
+- "cliente" es la entidad contratante (institución pública que convoca el proceso), en pocas palabras, ej: "ETAPA EP", "EERSSA", "Municipio de Cuenca". Si no se identifica con certeza, usa un nombre corto razonable a partir del texto o "" si es imposible determinarlo.
+- "descripcion" es un resumen muy corto (2 a 5 palabras) del objeto de contratación, en mayúsculas, ej: "STORAGE Y VMS", "MANTENIMIENTO VIAL", "CONSULTORIA ESTRUCTURAL". No repitas el nombre del cliente dentro de la descripción.
 
 Reglas para las fechas clave:
 - Busca la fecha Y hora (cuando el documento la indique) de: (a) fecha límite para presentar la oferta, (b) fecha de la puja o subasta inversa, (c) fecha de adjudicación.
@@ -45,6 +50,10 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto adic
     "puja": "fecha y hora de la puja/subasta inversa, o \"\" si no aparece",
     "adjudicacion": "fecha de adjudicación, o \"\" si no aparece"
   },
+  "identificacion": {
+    "cliente": "entidad contratante, ej. ETAPA EP",
+    "descripcion": "resumen corto del objeto de contratación en mayúsculas, ej. STORAGE Y VMS"
+  },
   "anexo2Sugerido": [
     {
       "funcion": "cargo o especialidad del perfil, ej. Especialista en Estructuras",
@@ -65,6 +74,7 @@ Reglas de formato:
 - Genera una fila correspondiente en "anexo3Sugerido" por cada perfil (mismo orden que anexo2Sugerido cuando sea posible).
 - Si no encuentras información para alguna categoría de "requisitos", devuelve un arreglo vacío para esa categoría, nunca omitas la clave.
 - "fechasClave" siempre debe incluir las tres claves (presentacionOferta, puja, adjudicacion), usando "" cuando no se encuentre esa fecha.
+- "identificacion" siempre debe incluir "cliente" y "descripcion", usando "" cuando no se pueda determinar.
 - No incluyas explicaciones, solo el JSON.`;
 
 interface InputDocument {
@@ -135,6 +145,7 @@ function normalizeResult(data: unknown): ExtractionResult {
   const obj = data as Record<string, unknown>;
   const req = (obj.requisitos ?? {}) as Record<string, unknown>;
   const fechas = (obj.fechasClave ?? {}) as Record<string, unknown>;
+  const identificacion = (obj.identificacion ?? {}) as Record<string, unknown>;
 
   const toStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
@@ -177,6 +188,10 @@ function normalizeResult(data: unknown): ExtractionResult {
       presentacionOferta: toTrimmedString(fechas.presentacionOferta),
       puja: toTrimmedString(fechas.puja),
       adjudicacion: toTrimmedString(fechas.adjudicacion),
+    },
+    identificacion: {
+      cliente: toTrimmedString(identificacion.cliente),
+      descripcion: toTrimmedString(identificacion.descripcion),
     },
     anexo2Sugerido: dedupeAnexo2(anexo2),
     anexo3Sugerido: dedupeAnexo3(anexo3),
