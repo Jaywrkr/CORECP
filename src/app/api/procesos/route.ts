@@ -1,13 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deleteProceso, readProceso, writeProceso } from "@/lib/procesosStore";
+import { deleteProceso, listProcesos, readProceso, writeProceso } from "@/lib/procesosStore";
+import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
 import type { ExtractionResult } from "@/types/extraction";
 
 export const runtime = "nodejs";
 
 export async function GET(req: NextRequest) {
   const numero = req.nextUrl.searchParams.get("numero")?.trim();
+
   if (!numero) {
-    return NextResponse.json({ error: "Falta el número de proceso." }, { status: 400 });
+    // No número given: return the menu of every stored proceso instead.
+    try {
+      const procesos = await listProcesos();
+      return NextResponse.json({ procesos });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Error desconocido";
+      return NextResponse.json(
+        { error: `No se pudo listar los procesos guardados: ${message}` },
+        { status: 500 },
+      );
+    }
   }
 
   try {
@@ -40,8 +52,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const nombreProyecto = generarNombreProyecto(
+      result.identificacion?.cliente ?? "",
+      result.identificacion?.descripcion ?? "",
+    );
+
     const proceso = {
       numeroProceso,
+      nombreProyecto,
       result,
       documentos,
       actualizadoEn: new Date().toISOString(),
