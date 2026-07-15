@@ -215,7 +215,7 @@ export async function POST(req: NextRequest) {
 
     const client = new Anthropic({ apiKey });
 
-    // Claude Opus 4.8 has a 1M-token context window, so a generous per-request
+    // Claude Sonnet 5 has a 1M-token context window, so a generous per-request
     // character budget shared across all documents is safe.
     const MAX_TOTAL_CHARS = 700_000;
     let remaining = MAX_TOTAL_CHARS;
@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
     let response;
     try {
       response = await client.messages.create({
-        model: "claude-opus-4-8",
+        model: "claude-sonnet-5",
         max_tokens: 8000,
         system: SYSTEM_PROMPT,
         messages: [
