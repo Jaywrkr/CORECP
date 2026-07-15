@@ -48,15 +48,19 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 6. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
    (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
    cuando el pliego las indique.
-7. El botón **"Vista previa Anexo 2"** abre el documento completo con el
-   formato real del Anexo 2 oficial: título, párrafo introductorio, la tabla
-   de "Cumplimiento de personal técnico mínimo", la sección de "Títulos
-   profesionales y formación académica" (con los documentos Senescyt de cada
-   técnico asignado insertados automáticamente), la sección de
-   "Certificaciones" (ídem, con los documentos de certificaciones) y el bloque
-   de firma (representante, cargo, empresa, ciudad y fecha). El botón
-   **"Editar todo"** dentro de esa vista previa vuelve editable a mano
-   absolutamente todo el texto — celdas de la tabla, párrafos introductorios y
+7. El botón **"Vista previa Anexo 2"** abre el documento completo replicando
+   el formato exacto de la plantilla oficial (`Anexo_2_personal_tecnico.docx`):
+   fondo blanco, membrete con el logo de CORESOLUTIONS y datos de contacto,
+   tipografía Calibri, título en azul (#1F4E79) con línea inferior, tabla con
+   encabezado azul marino (#44546A) y texto blanco en negrita, párrafos
+   justificados — título, párrafo introductorio, la tabla de "Cumplimiento de
+   personal técnico mínimo", la sección de "Títulos profesionales y formación
+   académica" (con los documentos Senescyt de cada técnico asignado insertados
+   automáticamente), la sección de "Certificaciones" (ídem, con los documentos
+   de certificaciones) y el bloque de firma (representante, cargo, empresa,
+   ciudad y fecha). El botón **"Editar todo"** dentro de esa vista previa
+   vuelve editable a mano absolutamente todo el texto — celdas de la tabla,
+   párrafos introductorios, membrete y
    firma — sin depender de lo que detectó la IA o del técnico asignado; los
    cambios se guardan automáticamente al salir de cada campo, persistidos
    junto con el resto del análisis en Vercel Blob.

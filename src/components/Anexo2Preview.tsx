@@ -16,8 +16,20 @@ interface Anexo2PreviewProps {
 }
 
 const HEADERS = ["Nro", "Función", "Nombre", "Nivel de estudio", "Titulación académica"];
+const COL_WIDTHS = ["5%", "24%", "19%", "21%", "31%"];
+
+// Colores y tipografía tomados directamente de la plantilla oficial
+// (Anexo_2_personal_tecnico.docx): título #1F4E79 con borde inferior
+// #5B9BD5, encabezado de tabla #44546A con texto blanco, fuente Calibri.
+const AZUL_TITULO = "#1F4E79";
+const AZUL_BORDE = "#5B9BD5";
+const NAVY_TABLA = "#44546A";
+const FONT_FAMILY = "Calibri, Carlito, 'Segoe UI', Arial, sans-serif";
 
 const FIRMA_DEFAULT: Required<Anexo2Firma> = {
+  encabezadoDireccion: "Cuenca: Av. 3 de Noviembre 21-176 y Juan Pablo I",
+  encabezadoTelefonos: "Teléfonos: +593 (07) 284-1495   (07) 284-3991",
+  encabezadoEmail: "E-mail: gerencia@coresolutions.com.ec",
   introEmpresa:
     "Para asegurar que los servicios de implementación y soporte post-instalación sean oportunos y eficientes, CORESOLUTIONS cuenta con un equipo de consultores comerciales y especialistas técnicos certificados, para garantizar tiempos de respuesta oportunos, frente a requerimientos e incidentes críticos para resolución de problemas con profesionales expertos.",
   introTitulos:
@@ -61,8 +73,43 @@ export default function Anexo2Preview({
   const f = { ...FIRMA_DEFAULT, ...firma };
 
   return (
-    <div className="flex flex-col gap-6 rounded-lg p-6" style={{ background: "#1a1a1a", border: "1px solid #333" }}>
-      <h1 className="text-xl font-bold" style={{ color: "#5b9bd5" }}>
+    <div
+      className="flex flex-col gap-5 rounded-md p-8"
+      style={{ background: "#ffffff", color: "#000000", fontFamily: FONT_FAMILY }}
+    >
+      {/* Encabezado / letterhead */}
+      <div className="flex items-start justify-between gap-4 border-b pb-3" style={{ borderColor: "#ccc" }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset served from /public, not optimizable content */}
+        <img src="/coresolutions-logo.png" alt="CORESOLUTIONS" className="h-9 w-auto" />
+        <div className="text-right text-[10px] leading-snug" style={{ color: "#333" }}>
+          <EditableParagraph
+            editable={editable}
+            value={f.encabezadoDireccion}
+            small
+            align="right"
+            onChange={(v) => onFirmaChange?.("encabezadoDireccion", v)}
+          />
+          <EditableParagraph
+            editable={editable}
+            value={f.encabezadoTelefonos}
+            small
+            align="right"
+            onChange={(v) => onFirmaChange?.("encabezadoTelefonos", v)}
+          />
+          <EditableParagraph
+            editable={editable}
+            value={f.encabezadoEmail}
+            small
+            align="right"
+            onChange={(v) => onFirmaChange?.("encabezadoEmail", v)}
+          />
+        </div>
+      </div>
+
+      <h1
+        className="pb-1.5 text-2xl font-bold"
+        style={{ color: AZUL_TITULO, borderBottom: `1px solid ${AZUL_BORDE}` }}
+      >
         ANEXO 2: PERSONAL TÉCNICO
       </h1>
 
@@ -73,22 +120,27 @@ export default function Anexo2Preview({
       />
 
       <div>
-        <h2 className="mb-2 text-lg font-semibold" style={{ color: "#5b9bd5" }}>
+        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
           Cumplimiento de personal técnico mínimo
         </h2>
-        <p className="mb-4 text-sm" style={{ color: "#e5e7eb" }}>
+        <p className="mb-3 text-justify text-sm">
           A continuación, indicamos el personal técnico de CORESOLUTIONS, con lo cual se cumple lo
           requerido en los términos de referencia:
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm" style={{ color: "#e5e7eb" }}>
+          <table className="w-full min-w-[640px] border-collapse text-sm">
+            <colgroup>
+              {COL_WIDTHS.map((w, i) => (
+                <col key={i} style={{ width: w }} />
+              ))}
+            </colgroup>
             <thead>
               <tr>
                 {HEADERS.map((h) => (
                   <th
                     key={h}
-                    className="border px-3 py-2 text-left font-semibold"
-                    style={{ background: "#a9c6e8", color: "#1f2d3d", borderColor: "#333" }}
+                    className="border px-2 py-1.5 text-center text-xs font-bold"
+                    style={{ background: NAVY_TABLA, color: "#ffffff", borderColor: "#000" }}
                   >
                     {h}
                   </th>
@@ -106,7 +158,7 @@ export default function Anexo2Preview({
 
                 return (
                   <tr key={i}>
-                    <td className="border px-3 py-3 align-top" style={{ borderColor: "#333" }}>
+                    <td className="border px-2 py-2 align-top text-xs" style={{ borderColor: "#000" }}>
                       {i + 1}
                     </td>
                     <EditableCell
@@ -141,7 +193,7 @@ export default function Anexo2Preview({
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-semibold" style={{ color: "#5b9bd5" }}>
+        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
           Títulos profesionales y formación académica
         </h2>
         <EditableParagraph
@@ -167,7 +219,7 @@ export default function Anexo2Preview({
       </div>
 
       <div>
-        <h2 className="mb-2 text-lg font-semibold" style={{ color: "#5b9bd5" }}>
+        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
           Certificaciones de consultores y especialistas técnicos
         </h2>
         <EditableParagraph
@@ -193,10 +245,8 @@ export default function Anexo2Preview({
       </div>
 
       <div className="flex flex-col gap-1">
-        <p className="text-sm" style={{ color: "#e5e7eb" }}>
-          Para constancia de lo ofertado, suscribo este Anexo,
-        </p>
-        <p className="text-sm" style={{ color: "#666" }}>
+        <p className="text-sm">Para constancia de lo ofertado, suscribo este Anexo,</p>
+        <p className="text-sm" style={{ color: "#999" }}>
           -------------------------------------------------------
         </p>
         <EditableParagraph
@@ -240,11 +290,9 @@ function DocumentoTecnicoGallery({
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-sm font-semibold" style={{ color: "#e5e7eb" }}>
-        {titulo}
-      </p>
+      <p className="mb-1.5 text-sm font-semibold">{titulo}</p>
       {archivos.length === 0 ? (
-        <p className="text-xs italic" style={{ color: "#777" }}>
+        <p className="text-xs italic" style={{ color: "#888" }}>
           {vacioMensaje}
         </p>
       ) : (
@@ -256,7 +304,7 @@ function DocumentoTecnicoGallery({
                 src={archivo.url}
                 title={archivo.nombre}
                 className="h-64 w-56 rounded"
-                style={{ border: "1px solid #333" }}
+                style={{ border: "1px solid #ccc" }}
               />
             ) : (
               // eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL, not a local/optimizable asset
@@ -265,7 +313,7 @@ function DocumentoTecnicoGallery({
                 src={archivo.url}
                 alt={archivo.nombre}
                 className="max-h-64 max-w-[220px] rounded object-contain"
-                style={{ border: "1px solid #333" }}
+                style={{ border: "1px solid #ccc" }}
               />
             ),
           )}
@@ -288,7 +336,7 @@ function EditableCell({
 }) {
   if (!editable) {
     return (
-      <td className="border px-3 py-3 align-top whitespace-pre-line" style={{ borderColor: "#333" }}>
+      <td className="border px-2 py-2 align-top text-xs whitespace-pre-line" style={{ borderColor: "#000" }}>
         {value.split("\n").map((linea, li) => (
           <div key={li}>{linea}</div>
         ))}
@@ -297,14 +345,14 @@ function EditableCell({
   }
 
   return (
-    <td className="border p-1 align-top" style={{ borderColor: "#333" }}>
+    <td className="border p-1 align-top" style={{ borderColor: "#000" }}>
       <textarea
         key={value}
         defaultValue={value}
         onBlur={(e) => onChange(e.target.value)}
         rows={multiline ? 3 : 1}
-        className="w-full resize-none rounded p-1.5 text-sm outline-none"
-        style={{ color: "#e5e7eb", background: "#111", border: "1px solid #444" }}
+        className="w-full resize-none rounded p-1.5 text-xs outline-none"
+        style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999" }}
       />
     </td>
   );
@@ -316,18 +364,20 @@ function EditableParagraph({
   onChange,
   bold,
   small,
+  align,
 }: {
   editable: boolean;
   value: string;
   onChange: (value: string) => void;
   bold?: boolean;
   small?: boolean;
+  align?: "left" | "right";
 }) {
   if (!editable) {
     return (
       <p
-        className={`whitespace-pre-line text-sm ${bold ? "font-semibold" : ""}`}
-        style={{ color: "#e5e7eb" }}
+        className={`whitespace-pre-line ${small ? "text-xs" : "text-sm text-justify"} ${bold ? "font-bold" : ""}`}
+        style={{ textAlign: align }}
       >
         {value}
       </p>
@@ -340,8 +390,8 @@ function EditableParagraph({
       defaultValue={value}
       onBlur={(e) => onChange(e.target.value)}
       rows={small ? 1 : 3}
-      className={`w-full resize-none rounded p-2 text-sm outline-none ${bold ? "font-semibold" : ""}`}
-      style={{ color: "#e5e7eb", background: "#111", border: "1px solid #444" }}
+      className={`w-full resize-none rounded p-2 outline-none ${small ? "text-xs" : "text-sm"} ${bold ? "font-bold" : ""}`}
+      style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999", textAlign: align }}
     />
   );
 }

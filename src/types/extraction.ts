@@ -59,6 +59,9 @@ export type Anexo2OverridesMap = Record<number, Anexo2Overrides>;
 // también se pueden editar a mano en "Editar todo", separados de las filas
 // de la tabla porque aplican al documento completo, no a un perfil puntual.
 export interface Anexo2Firma {
+  encabezadoDireccion?: string;
+  encabezadoTelefonos?: string;
+  encabezadoEmail?: string;
   introEmpresa?: string;
   introTitulos?: string;
   introCertificaciones?: string;
