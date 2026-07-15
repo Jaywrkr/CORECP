@@ -1,4 +1,4 @@
-import type { Anexo2OverridesMap, ExtractionResult } from "./extraction";
+import type { Anexo2Firma, Anexo2OverridesMap, ExtractionResult } from "./extraction";
 
 export interface ProcesoCache {
   numeroProceso: string;
@@ -6,6 +6,7 @@ export interface ProcesoCache {
   result: ExtractionResult;
   documentos: string[];
   anexo2Overrides?: Anexo2OverridesMap;
+  anexo2Firma?: Anexo2Firma;
   actualizadoEn: string;
 }
 

@@ -11,7 +11,7 @@ interface TecnicosManagerProps {
 
 // Categorías de documento por técnico. Agregar una nueva categoría es tan
 // simple como añadir un string aquí — el resto de la UI se genera solo.
-const TIPOS_DOCUMENTO = ["Senescyt"];
+const TIPOS_DOCUMENTO = ["Senescyt", "Certificaciones"];
 
 interface PreviewState {
   tecnicoId: string;

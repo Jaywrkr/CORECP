@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProceso, listProcesos, readProceso, writeProceso } from "@/lib/procesosStore";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
-import type { Anexo2OverridesMap, ExtractionResult } from "@/types/extraction";
+import type { Anexo2Firma, Anexo2OverridesMap, ExtractionResult } from "@/types/extraction";
 
 export const runtime = "nodejs";
 
@@ -48,6 +48,10 @@ export async function POST(req: NextRequest) {
       typeof b.anexo2Overrides === "object" && b.anexo2Overrides !== null
         ? (b.anexo2Overrides as Anexo2OverridesMap)
         : undefined;
+    const anexo2Firma =
+      typeof b.anexo2Firma === "object" && b.anexo2Firma !== null
+        ? (b.anexo2Firma as Anexo2Firma)
+        : undefined;
 
     if (!numeroProceso || !result || typeof result !== "object") {
       return NextResponse.json(
@@ -67,6 +71,7 @@ export async function POST(req: NextRequest) {
       result,
       documentos,
       anexo2Overrides,
+      anexo2Firma,
       actualizadoEn: new Date().toISOString(),
     };
 

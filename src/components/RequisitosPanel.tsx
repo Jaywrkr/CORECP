@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { Anexo2Overrides, Anexo2OverridesMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import type {
+  Anexo2Firma,
+  Anexo2Overrides,
+  Anexo2OverridesMap,
+  ExtractionResult,
+  ExtractionStatus,
+} from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
@@ -18,6 +24,8 @@ interface RequisitosPanelProps {
   onAssignTecnico?: (rowIndex: number, tecnicoId: string) => void;
   anexo2Overrides?: Anexo2OverridesMap;
   onAnexo2OverrideChange?: (rowIndex: number, field: keyof Anexo2Overrides, value: string) => void;
+  anexo2Firma?: Anexo2Firma;
+  onAnexo2FirmaChange?: (field: keyof Anexo2Firma, value: string) => void;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -60,6 +68,8 @@ export default function RequisitosPanel({
   onAssignTecnico,
   anexo2Overrides = {},
   onAnexo2OverrideChange,
+  anexo2Firma = {},
+  onAnexo2FirmaChange,
 }: RequisitosPanelProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [editMode, setEditMode] = useState(false);
@@ -315,7 +325,7 @@ export default function RequisitosPanel({
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-lg border"
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
             style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
           >
             <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
@@ -349,8 +359,10 @@ export default function RequisitosPanel({
                 tecnicos={tecnicos}
                 asignaciones={asignaciones}
                 overrides={anexo2Overrides}
+                firma={anexo2Firma}
                 editable={editMode}
                 onOverrideChange={onAnexo2OverrideChange}
+                onFirmaChange={onAnexo2FirmaChange}
               />
               {editMode && (
                 <p className="mt-3 text-xs" style={{ color: "var(--text-tertiary)" }}>

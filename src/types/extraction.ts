@@ -54,3 +54,16 @@ export interface Anexo2Overrides {
 }
 
 export type Anexo2OverridesMap = Record<number, Anexo2Overrides>;
+
+// Textos fijos del documento (portada, párrafos introductorios, firma) que
+// también se pueden editar a mano en "Editar todo", separados de las filas
+// de la tabla porque aplican al documento completo, no a un perfil puntual.
+export interface Anexo2Firma {
+  introEmpresa?: string;
+  introTitulos?: string;
+  introCertificaciones?: string;
+  representanteNombre?: string;
+  representanteCargo?: string;
+  empresa?: string;
+  ciudadFecha?: string;
+}
