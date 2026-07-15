@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0e1116;
+  --bg-elevated: #151a21;
+  --bg-panel: #11151b;
+  --border: #262d38;
+  --border-subtle: #1c222b;
+  --text-primary: #e8ebf0;
+  --text-secondary: #9aa4b2;
+  --text-tertiary: #6b7480;
+  --accent: #3b82f6;
+  --accent-hover: #5b93f5;
+  --accent-soft: rgba(59, 130, 246, 0.12);
+  --danger: #f87171;
+  --danger-soft: rgba(248, 113, 113, 0.1);
+  --success: #4ade80;
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--text-primary);
+  --font-sans: var(--font-ibm-sans);
+  --font-mono: var(--font-ibm-mono);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: var(--font-ibm-sans), -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text-primary);
+}
+
+/* Slim, unobtrusive scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* react-pdf overrides to match the neutral theme */
+.react-pdf__Page {
+  margin: 0 auto 12px auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+.react-pdf__Page__canvas {
+  border-radius: 2px;
+}
