@@ -28,6 +28,9 @@ poder reutilizarlo entre sesiones y usuarios.
    de forma persistente en Vercel Blob. En cada fila del Anexo 2 se puede asignar
    un técnico del roster al perfil detectado, autocompletando el campo "Nombre" y
    avisando si el título del técnico no coincide con el requerido.
+5. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
+   (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
+   cuando el pliego las indique.
 
 ## Desarrollo local
 
@@ -44,7 +47,7 @@ Abre [http://localhost:3000](http://localhost:3000).
 | Variable               | Descripción                                                        |
 | ---------------------- | ------------------------------------------------------------------- |
 | `ANTHROPIC_API_KEY`    | API key de Anthropic usada por `/api/extract`.                     |
-| `BLOB_READ_WRITE_TOKEN`| Token de Vercel Blob usado por `/api/tecnicos` para leer/escribir el roster de técnicos. Se inyecta automáticamente al conectar un Blob Store al proyecto (ver despliegue abajo) — no hace falta configurarlo a mano en Vercel, pero sí en local. |
+| `BLOB_READ_WRITE_TOKEN`| Token de Vercel Blob usado por `/api/tecnicos` (roster de técnicos) para leer/escribir en Vercel Blob. Se inyecta automáticamente al conectar un Blob Store al proyecto (ver despliegue abajo) — no hace falta configurarlo a mano en Vercel, pero sí en local. |
 
 ## Despliegue en Vercel
 

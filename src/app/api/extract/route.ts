@@ -9,10 +9,18 @@ const SYSTEM_PROMPT = `Eres un asistente experto en licitaciones y compras públ
 
 Puedes recibir uno o más documentos en la misma solicitud (por ejemplo: el mismo pliego dividido en partes, distintas secciones de un mismo proceso, o pliegos de procesos relacionados). Cada documento viene delimitado con su nombre de archivo.
 
-Tu tarea: leer TODOS los documentos recibidos y producir UN SOLO resultado consolidado (nunca un resultado por documento) con la información relevante para completar dos anexos administrativos:
+Tu tarea: leer TODOS los documentos recibidos y producir UN SOLO resultado consolidado (nunca un resultado por documento) con:
 
-- Anexo 2: Personal Técnico (Función, Nombre, Nivel de estudio, Titulación académica)
-- Anexo 3: Experiencia del Personal Técnico (Personal, Cliente - Fecha de Acta/Factura, Proyecto, Monto)
+- Las fechas y horas clave del proceso: presentación de ofertas, puja (subasta inversa) y adjudicación.
+- La información relevante para completar dos anexos administrativos:
+  - Anexo 2: Personal Técnico (Función, Nombre, Nivel de estudio, Titulación académica)
+  - Anexo 3: Experiencia del Personal Técnico (Personal, Cliente - Fecha de Acta/Factura, Proyecto, Monto)
+
+Reglas para las fechas clave:
+- Busca la fecha Y hora (cuando el documento la indique) de: (a) fecha límite para presentar la oferta, (b) fecha de la puja o subasta inversa, (c) fecha de adjudicación.
+- Incluye el texto tal como aparece en el documento (fecha, hora y cualquier aclaración como zona horaria o "hora de Ecuador continental"), de forma legible, ej: "15 de marzo de 2026, 10:00" o "Hasta las 17:00 del 20/03/2026".
+- Si una fecha no aparece en ningún documento, devuelve un string vacío "" para ese campo — no inventes ni asumas fechas.
+- Si distintos documentos mencionan fechas distintas para el mismo hito (p. ej. una fecha fue reprogramada), usa la más reciente/actualizada mencionada.
 
 Reglas de consolidación (muy importantes):
 - Si un mismo requisito, perfil o certificación aparece en más de un documento — o se repite dentro del mismo documento — inclúyelo UNA SOLA VEZ en el resultado, aunque esté redactado con palabras distintas pero signifique lo mismo. Usa la redacción más clara y completa entre las variantes.
@@ -31,6 +39,11 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto adic
     "certificaciones": ["string describiendo certificaciones técnicas exigidas"],
     "experiencia": ["string describiendo experiencia mínima requerida: años, cantidad de proyectos, tipo de proyecto"],
     "otros": ["string con cualquier otro requisito relevante para el personal técnico"]
+  },
+  "fechasClave": {
+    "presentacionOferta": "fecha y hora límite para presentar la oferta, o \"\" si no aparece",
+    "puja": "fecha y hora de la puja/subasta inversa, o \"\" si no aparece",
+    "adjudicacion": "fecha de adjudicación, o \"\" si no aparece"
   },
   "anexo2Sugerido": [
     {
@@ -51,6 +64,7 @@ Reglas de formato:
 - Genera una fila en "anexo2Sugerido" por cada perfil de especialista distinto (consolidado entre todos los documentos).
 - Genera una fila correspondiente en "anexo3Sugerido" por cada perfil (mismo orden que anexo2Sugerido cuando sea posible).
 - Si no encuentras información para alguna categoría de "requisitos", devuelve un arreglo vacío para esa categoría, nunca omitas la clave.
+- "fechasClave" siempre debe incluir las tres claves (presentacionOferta, puja, adjudicacion), usando "" cuando no se encuentre esa fecha.
 - No incluyas explicaciones, solo el JSON.`;
 
 interface InputDocument {
@@ -120,6 +134,7 @@ function normalizeResult(data: unknown): ExtractionResult {
   }
   const obj = data as Record<string, unknown>;
   const req = (obj.requisitos ?? {}) as Record<string, unknown>;
+  const fechas = (obj.fechasClave ?? {}) as Record<string, unknown>;
 
   const toStringArray = (v: unknown): string[] =>
     Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
@@ -147,6 +162,8 @@ function normalizeResult(data: unknown): ExtractionResult {
       })
     : [];
 
+  const toTrimmedString = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
+
   return {
     requisitos: {
       personal: dedupeStrings(toStringArray(req.personal)),
@@ -155,6 +172,11 @@ function normalizeResult(data: unknown): ExtractionResult {
       certificaciones: dedupeStrings(toStringArray(req.certificaciones)),
       experiencia: dedupeStrings(toStringArray(req.experiencia)),
       otros: dedupeStrings(toStringArray(req.otros)),
+    },
+    fechasClave: {
+      presentacionOferta: toTrimmedString(fechas.presentacionOferta),
+      puja: toTrimmedString(fechas.puja),
+      adjudicacion: toTrimmedString(fechas.adjudicacion),
     },
     anexo2Sugerido: dedupeAnexo2(anexo2),
     anexo3Sugerido: dedupeAnexo3(anexo3),

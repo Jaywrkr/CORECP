@@ -22,8 +22,15 @@ export interface Anexo3Fila {
   requisitoExperiencia: string;
 }
 
+export interface FechasClave {
+  presentacionOferta: string;
+  puja: string;
+  adjudicacion: string;
+}
+
 export interface ExtractionResult {
   requisitos: RequisitosDetectados;
+  fechasClave: FechasClave;
   anexo2Sugerido: Anexo2Fila[];
   anexo3Sugerido: Anexo3Fila[];
 }
