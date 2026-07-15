@@ -1,12 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import type { Tecnico, TecnicoInput } from "@/types/tecnico";
+import type { DocumentoArchivo, Tecnico, TecnicoInput } from "@/types/tecnico";
 
 interface TecnicosManagerProps {
   onClose: () => void;
   tecnicos: Tecnico[];
   onTecnicosChange: (tecnicos: Tecnico[]) => void;
+}
+
+// Categorías de documento por técnico. Agregar una nueva categoría es tan
+// simple como añadir un string aquí — el resto de la UI se genera solo.
+const TIPOS_DOCUMENTO = ["Senescyt"];
+
+interface PreviewState {
+  tecnicoId: string;
+  tipo: string;
+  archivos: DocumentoArchivo[];
 }
 
 const EMPTY_FORM: TecnicoInput = {
@@ -36,7 +46,7 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{ url: string; nombre: string } | null>(null);
+  const [preview, setPreview] = useState<PreviewState | null>(null);
 
   const startEdit = (t: Tecnico) => {
     setEditingId(t.id);
@@ -102,13 +112,14 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
     }
   };
 
-  const handleUploadDocumento = async (tecnicoId: string, file: File) => {
+  const handleUploadDocumentos = async (tecnicoId: string, tipo: string, files: FileList) => {
     setSaving(true);
     setError(null);
     try {
       const formData = new FormData();
       formData.append("id", tecnicoId);
-      formData.append("file", file);
+      formData.append("tipo", tipo);
+      Array.from(files).forEach((f) => formData.append("files", f));
       const res = await fetch("/api/tecnicos/documento", { method: "POST", body: formData });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "No se pudo subir el documento.");
@@ -120,16 +131,21 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
     }
   };
 
-  const handleRemoveDocumento = async (tecnicoId: string) => {
+  const handleRemoveArchivo = async (tecnicoId: string, tipo: string, url?: string) => {
     setSaving(true);
     setError(null);
     try {
-      const res = await fetch(`/api/tecnicos/documento?id=${encodeURIComponent(tecnicoId)}`, {
-        method: "DELETE",
-      });
+      const params = new URLSearchParams({ id: tecnicoId, tipo });
+      if (url) params.set("url", url);
+      const res = await fetch(`/api/tecnicos/documento?${params.toString()}`, { method: "DELETE" });
       const data = await res.json();
       if (!res.ok) throw new Error(data?.error || "No se pudo eliminar el documento.");
       onTecnicosChange(data.tecnicos);
+      setPreview((prev) => {
+        if (!prev || prev.tecnicoId !== tecnicoId || prev.tipo !== tipo) return prev;
+        const restantes = url ? prev.archivos.filter((a) => a.url !== url) : [];
+        return restantes.length > 0 ? { ...prev, archivos: restantes } : null;
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Error desconocido al eliminar el documento.");
     } finally {
@@ -314,76 +330,106 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
               {tecnicos.map((t) => (
                 <li
                   key={t.id}
-                  className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
+                  className="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm"
                   style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
                 >
-                  <div className="min-w-0">
-                    <div style={{ color: "var(--text-primary)" }}>
-                      {t.nombre}
-                      {t.rol ? ` · ${t.rol}` : ""}
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div style={{ color: "var(--text-primary)" }}>
+                        {t.nombre}
+                        {t.rol ? ` · ${t.rol}` : ""}
+                      </div>
+                      <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                        CI {t.cedula}
+                        {t.tituloAcademico ? ` · ${t.tituloAcademico}` : ""}
+                        {t.cuartoNivelTitulo ? ` · ${t.cuartoNivelTitulo}` : ""}
+                        {t.nivelEstudio ? ` · ${t.nivelEstudio}` : ""}
+                        {t.fechaIngreso ? ` · Ingreso: ${t.fechaIngreso}` : ""}
+                        {t.fechaContrato ? ` · Contrato: ${t.fechaContrato}` : ""}
+                      </div>
                     </div>
-                    <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
-                      CI {t.cedula}
-                      {t.tituloAcademico ? ` · ${t.tituloAcademico}` : ""}
-                      {t.cuartoNivelTitulo ? ` · ${t.cuartoNivelTitulo}` : ""}
-                      {t.nivelEstudio ? ` · ${t.nivelEstudio}` : ""}
-                      {t.fechaIngreso ? ` · Ingreso: ${t.fechaIngreso}` : ""}
-                      {t.fechaContrato ? ` · Contrato: ${t.fechaContrato}` : ""}
-                    </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {t.documentoUrl ? (
-                      <>
-                        <button
-                          onClick={() => setPreview({ url: t.documentoUrl!, nombre: t.documentoNombre || "documento" })}
-                          className="rounded px-2 py-1 text-xs hover:bg-white/5"
-                          style={{ color: "var(--accent-hover)" }}
-                        >
-                          Ver documento
-                        </button>
-                        <button
-                          onClick={() => handleRemoveDocumento(t.id)}
-                          disabled={saving}
-                          className="rounded px-2 py-1 text-xs hover:bg-white/5"
-                          style={{ color: "var(--text-tertiary)" }}
-                        >
-                          Quitar
-                        </button>
-                      </>
-                    ) : (
-                      <label
-                        className="cursor-pointer rounded px-2 py-1 text-xs hover:bg-white/5"
+                    <div className="flex shrink-0 items-center gap-2">
+                      <button
+                        onClick={() => startEdit(t)}
+                        className="rounded px-2 py-1 text-xs hover:bg-white/5"
                         style={{ color: "var(--text-secondary)" }}
                       >
-                        Subir documento
-                        <input
-                          type="file"
-                          accept="application/pdf,image/*"
-                          disabled={saving}
-                          className="hidden"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) void handleUploadDocumento(t.id, file);
-                            e.target.value = "";
-                          }}
-                        />
-                      </label>
-                    )}
-                    <button
-                      onClick={() => startEdit(t)}
-                      className="rounded px-2 py-1 text-xs hover:bg-white/5"
-                      style={{ color: "var(--text-secondary)" }}
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => handleDelete(t.id)}
-                      disabled={saving}
-                      className="rounded px-2 py-1 text-xs hover:bg-white/5"
-                      style={{ color: "var(--danger)" }}
-                    >
-                      Eliminar
-                    </button>
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => handleDelete(t.id)}
+                        disabled={saving}
+                        className="rounded px-2 py-1 text-xs hover:bg-white/5"
+                        style={{ color: "var(--danger)" }}
+                      >
+                        Eliminar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    {TIPOS_DOCUMENTO.map((tipo) => {
+                      const archivos = t.documentos?.[tipo] ?? [];
+                      return (
+                        <div key={tipo} className="flex items-center gap-1.5 text-xs">
+                          {archivos.length > 0 ? (
+                            <>
+                              <button
+                                onClick={() => setPreview({ tecnicoId: t.id, tipo, archivos })}
+                                className="rounded px-2 py-1 hover:bg-white/5"
+                                style={{ color: "var(--accent-hover)" }}
+                              >
+                                Ver {tipo} ({archivos.length})
+                              </button>
+                              <label
+                                className="cursor-pointer rounded px-1.5 py-1 hover:bg-white/5"
+                                style={{ color: "var(--text-tertiary)" }}
+                                title={`Agregar más archivos a ${tipo}`}
+                              >
+                                +
+                                <input
+                                  type="file"
+                                  accept="application/pdf,image/*"
+                                  multiple
+                                  disabled={saving}
+                                  className="hidden"
+                                  onChange={(e) => {
+                                    if (e.target.files?.length) void handleUploadDocumentos(t.id, tipo, e.target.files);
+                                    e.target.value = "";
+                                  }}
+                                />
+                              </label>
+                              <button
+                                onClick={() => handleRemoveArchivo(t.id, tipo)}
+                                disabled={saving}
+                                className="rounded px-1.5 py-1 hover:bg-white/5"
+                                style={{ color: "var(--text-tertiary)" }}
+                              >
+                                Quitar todo
+                              </button>
+                            </>
+                          ) : (
+                            <label
+                              className="cursor-pointer rounded px-2 py-1 hover:bg-white/5"
+                              style={{ color: "var(--text-secondary)" }}
+                            >
+                              + Subir {tipo}
+                              <input
+                                type="file"
+                                accept="application/pdf,image/*"
+                                multiple
+                                disabled={saving}
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.length) void handleUploadDocumentos(t.id, tipo, e.target.files);
+                                  e.target.value = "";
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 </li>
               ))}
@@ -405,7 +451,7 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
           >
             <div className="flex items-center justify-between border-b px-3 py-2" style={{ borderColor: "var(--border)" }}>
               <span className="truncate text-xs" style={{ color: "var(--text-secondary)" }}>
-                {preview.nombre}
+                {preview.tipo} · {preview.archivos.length} archivo{preview.archivos.length === 1 ? "" : "s"}
               </span>
               <button
                 onClick={() => setPreview(null)}
@@ -416,13 +462,28 @@ export default function TecnicosManager({ onClose, tecnicos, onTecnicosChange }:
                 ×
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-3">
-              {/\.pdf$/i.test(preview.nombre) ? (
-                <iframe src={preview.url} title={preview.nombre} className="h-[75vh] w-[70vw] rounded" />
-              ) : (
-                // eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL, not a local/optimizable asset
-                <img src={preview.url} alt={preview.nombre} className="max-h-[75vh] max-w-full rounded" />
-              )}
+            <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-auto p-3">
+              {preview.archivos.map((archivo) => (
+                <div key={archivo.url} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    <span className="truncate">{archivo.nombre}</span>
+                    <button
+                      onClick={() => handleRemoveArchivo(preview.tecnicoId, preview.tipo, archivo.url)}
+                      disabled={saving}
+                      className="shrink-0 rounded px-2 py-0.5 hover:bg-white/5"
+                      style={{ color: "var(--danger)" }}
+                    >
+                      Quitar
+                    </button>
+                  </div>
+                  {/\.pdf$/i.test(archivo.nombre) ? (
+                    <iframe src={archivo.url} title={archivo.nombre} className="h-[60vh] w-[70vw] rounded" />
+                  ) : (
+                    // eslint-disable-next-line @next/next/no-img-element -- remote Vercel Blob URL, not a local/optimizable asset
+                    <img src={archivo.url} alt={archivo.nombre} className="max-w-full rounded" />
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         </div>

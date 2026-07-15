@@ -10,7 +10,7 @@ import TecnicosManager from "@/components/TecnicosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import { detectProcessCode } from "@/lib/detectProcessCode";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
-import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import type { Anexo2Overrides, Anexo2OverridesMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import type { ProcesoCache } from "@/types/proceso";
 
@@ -44,6 +44,7 @@ export default function AnalizarContent() {
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [showTecnicos, setShowTecnicos] = useState(false);
   const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
+  const [anexo2Overrides, setAnexo2Overrides] = useState<Anexo2OverridesMap>({});
 
   const [numeroProceso, setNumeroProceso] = useState(() => numeroFromUrl ?? "");
   const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
@@ -82,6 +83,7 @@ export default function AnalizarContent() {
         setResult(data.proceso.result);
         setFromCache(true);
         setCacheUpdatedAt(data.proceso.actualizadoEn);
+        setAnexo2Overrides(data.proceso.anexo2Overrides ?? {});
         setSaveState("saved");
         setStatus("done");
       })
@@ -108,13 +110,23 @@ export default function AnalizarContent() {
   }, []);
 
   const guardarResultado = useCallback(
-    async (cacheKey: string, extractionResult: ExtractionResult, documentos: string[]) => {
+    async (
+      cacheKey: string,
+      extractionResult: ExtractionResult,
+      documentos: string[],
+      overrides: Anexo2OverridesMap,
+    ) => {
       setSaveState("saving");
       try {
         const res = await fetch("/api/procesos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ numeroProceso: cacheKey, result: extractionResult, documentos }),
+          body: JSON.stringify({
+            numeroProceso: cacheKey,
+            result: extractionResult,
+            documentos,
+            anexo2Overrides: overrides,
+          }),
         });
         const data: { proceso?: ProcesoCache; error?: string } = await res.json();
         if (!res.ok || !data.proceso) throw new Error(data.error || "No se pudo guardar el análisis.");
@@ -136,6 +148,7 @@ export default function AnalizarContent() {
     setError(null);
     setProgressLabel(null);
     setAsignaciones({});
+    setAnexo2Overrides({});
     setFromCache(false);
     setCacheUpdatedAt(null);
     setNombreProyecto(null);
@@ -151,6 +164,7 @@ export default function AnalizarContent() {
       setError(null);
       setResult(null);
       setAsignaciones({});
+      setAnexo2Overrides({});
       setFromCache(false);
       setCacheUpdatedAt(null);
       setNombreProyecto(null);
@@ -208,6 +222,7 @@ export default function AnalizarContent() {
               setFromCache(true);
               setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
               setNombreProyecto(cacheData.proceso.nombreProyecto);
+              setAnexo2Overrides(cacheData.proceso.anexo2Overrides ?? {});
               setSaveState("saved");
               lastAnalysisRef.current = {
                 cacheKey: cacheData.proceso.numeroProceso,
@@ -263,7 +278,7 @@ export default function AnalizarContent() {
         const cacheKey = numero || autoNombre;
         if (!numero) setNumeroProceso(cacheKey);
 
-        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename));
+        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename), {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
         setStatus("error");
@@ -316,9 +331,27 @@ export default function AnalizarContent() {
 
   const handleRetrySave = useCallback(() => {
     if (result && lastAnalysisRef.current) {
-      void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos);
+      void guardarResultado(
+        lastAnalysisRef.current.cacheKey,
+        result,
+        lastAnalysisRef.current.documentos,
+        anexo2Overrides,
+      );
     }
-  }, [result, guardarResultado]);
+  }, [result, guardarResultado, anexo2Overrides]);
+
+  const handleAnexo2OverrideChange = useCallback(
+    (rowIndex: number, field: keyof Anexo2Overrides, value: string) => {
+      setAnexo2Overrides((prev) => {
+        const next = { ...prev, [rowIndex]: { ...prev[rowIndex], [field]: value } };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, next);
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado],
+  );
 
   const isBusy = status === "uploading" || status === "extracting";
 
@@ -333,6 +366,7 @@ export default function AnalizarContent() {
         lastAnalysisRef.current.cacheKey,
         result,
         lastAnalysisRef.current.documentos,
+        anexo2Overrides,
       );
       if (ok) {
         router.push("/");
@@ -343,7 +377,7 @@ export default function AnalizarContent() {
       "No se pudo guardar este análisis en la base de datos todavía. Si sales ahora, se perderá. ¿Salir de todas formas?",
     );
     if (leaveAnyway) router.push("/");
-  }, [isBusy, result, saveState, guardarResultado, router]);
+  }, [isBusy, result, saveState, guardarResultado, router, anexo2Overrides]);
 
   const activeFile = documents[activeIndex] ?? null;
   const hasContent = documents.length > 0 || result !== null;
@@ -532,6 +566,8 @@ export default function AnalizarContent() {
             tecnicos={tecnicos}
             asignaciones={asignaciones}
             onAssignTecnico={handleAssignTecnico}
+            anexo2Overrides={anexo2Overrides}
+            onAnexo2OverrideChange={handleAnexo2OverrideChange}
           />
         </section>
       </main>

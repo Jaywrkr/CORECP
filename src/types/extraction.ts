@@ -42,3 +42,15 @@ export interface ExtractionResult {
 }
 
 export type ExtractionStatus = "idle" | "uploading" | "extracting" | "done" | "error";
+
+// Manual overrides for the Anexo 2 preview/document — let the user correct
+// any cell by hand regardless of what the AI extracted or which técnico was
+// assigned, keyed by anexo2Sugerido row index.
+export interface Anexo2Overrides {
+  funcion?: string;
+  nombre?: string;
+  nivelEstudio?: string;
+  titulacionAcademica?: string;
+}
+
+export type Anexo2OverridesMap = Record<number, Anexo2Overrides>;

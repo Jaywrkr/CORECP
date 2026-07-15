@@ -35,17 +35,27 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 5. En el botón **Técnicos** del encabezado se administra un roster de técnicos
    (nombre, cédula, rol, título de tercer nivel, cuarto nivel/maestría, nivel de
    estudio, fecha de contrato, fecha de ingreso, certificaciones), guardado de
-   forma persistente en Vercel Blob. Cada técnico puede tener un documento
-   adjunto (ej. título registrado en SENESCYT, imagen o PDF) con vista previa
-   integrada (sin salir de la app). En cada fila del Anexo 2 se puede asignar
-   un técnico del roster al perfil detectado, autocompletando el campo "Nombre"
-   y avisando si el título del técnico no coincide con el requerido — la
-   comparación tolera variantes de redacción y no avisa cuando el pliego acepta
-   "afines".
+   forma persistente en Vercel Blob. Cada técnico puede tener documentos
+   adjuntos agrupados por tipo (ej. "Senescyt" — que puede ser varios archivos,
+   como varias páginas escaneadas), con vista previa integrada (imágenes o PDF
+   embebidos, sin salir de la app). Agregar nuevos tipos de documento es
+   cuestión de una línea de código (`TIPOS_DOCUMENTO` en `TecnicosManager.tsx`).
+   En cada fila del Anexo 2 se puede asignar un técnico del roster al perfil
+   detectado, autocompletando el campo "Nombre" y avisando si el título del
+   técnico no coincide con el requerido — la comparación tolera variantes de
+   redacción y no avisa cuando el pliego acepta "afines".
 6. Al inicio de la columna derecha se destacan las **fechas clave del proceso**
    (presentación de oferta, puja/subasta inversa y adjudicación), con fecha y hora
    cuando el pliego las indique.
-7. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
+7. El botón **"Vista previa Anexo 2"** abre el Anexo 2 con el formato real del
+   documento final (título, párrafo introductorio y tabla con el mismo estilo
+   visual de la plantilla oficial), usando los técnicos ya asignados. El botón
+   **"Editar todo"** dentro de esa vista previa vuelve cada celda editable a
+   mano (para corregir cualquier función, nombre, nivel de estudio o titulación
+   sin depender de lo que detectó la IA o del técnico asignado) — los cambios
+   se guardan automáticamente al salir de cada campo, persistidos junto con el
+   resto del análisis en Vercel Blob.
+8. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
    (campo editable en la barra superior; se intenta autodetectar del propio
    texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si no hay número
    detectable, se usa como clave el **nombre automático de proyecto**
@@ -55,7 +65,7 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
    carga desde el caché **sin volver a llamar a Claude** — el badge "Cargado
    desde caché" lo indica, con un botón "Reanalizar con IA" para forzar un
    análisis nuevo (por ejemplo, si el pliego cambió).
-8. El botón **"← Volver"** regresa al buscador de procesos. Si el análisis
+9. El botón **"← Volver"** regresa al buscador de procesos. Si el análisis
    actual todavía no se ha guardado en la base de datos, intenta guardarlo
    antes de salir; si el guardado falla, muestra una advertencia antes de
    dejar la página para no perder el trabajo en silencio. Un badge junto al
