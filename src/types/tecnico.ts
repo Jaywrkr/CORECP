@@ -10,6 +10,8 @@ export interface Tecnico {
   fechaIngreso?: string;
   certificaciones: string[];
   notas?: string;
+  documentoUrl?: string;
+  documentoNombre?: string;
 }
 
 export type TecnicoInput = Omit<Tecnico, "id">;

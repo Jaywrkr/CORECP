@@ -3,6 +3,7 @@
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
+import { tituloCoincide } from "@/lib/tituloCoincide";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -234,12 +235,7 @@ export default function RequisitosPanel({
                     tecnicoAsignado &&
                     row.titulacionAcademica &&
                     tecnicoAsignado.tituloAcademico &&
-                    !tecnicoAsignado.tituloAcademico
-                      .toLowerCase()
-                      .includes(row.titulacionAcademica.toLowerCase()) &&
-                    !row.titulacionAcademica
-                      .toLowerCase()
-                      .includes(tecnicoAsignado.tituloAcademico.toLowerCase());
+                    !tituloCoincide(tecnicoAsignado.tituloAcademico, row.titulacionAcademica);
 
                   return (
                     <tr key={i} style={{ borderTop: "1px solid var(--border-subtle)" }}>
