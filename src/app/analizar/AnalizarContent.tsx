@@ -10,7 +10,13 @@ import TecnicosManager from "@/components/TecnicosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import { detectProcessCode } from "@/lib/detectProcessCode";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
-import type { Anexo2Overrides, Anexo2OverridesMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
+import type {
+  Anexo2Firma,
+  Anexo2Overrides,
+  Anexo2OverridesMap,
+  ExtractionResult,
+  ExtractionStatus,
+} from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import type { ProcesoCache } from "@/types/proceso";
 
@@ -45,6 +51,7 @@ export default function AnalizarContent() {
   const [showTecnicos, setShowTecnicos] = useState(false);
   const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
   const [anexo2Overrides, setAnexo2Overrides] = useState<Anexo2OverridesMap>({});
+  const [anexo2Firma, setAnexo2Firma] = useState<Anexo2Firma>({});
 
   const [numeroProceso, setNumeroProceso] = useState(() => numeroFromUrl ?? "");
   const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
@@ -84,6 +91,7 @@ export default function AnalizarContent() {
         setFromCache(true);
         setCacheUpdatedAt(data.proceso.actualizadoEn);
         setAnexo2Overrides(data.proceso.anexo2Overrides ?? {});
+        setAnexo2Firma(data.proceso.anexo2Firma ?? {});
         setSaveState("saved");
         setStatus("done");
       })
@@ -115,6 +123,7 @@ export default function AnalizarContent() {
       extractionResult: ExtractionResult,
       documentos: string[],
       overrides: Anexo2OverridesMap,
+      firma: Anexo2Firma,
     ) => {
       setSaveState("saving");
       try {
@@ -126,6 +135,7 @@ export default function AnalizarContent() {
             result: extractionResult,
             documentos,
             anexo2Overrides: overrides,
+            anexo2Firma: firma,
           }),
         });
         const data: { proceso?: ProcesoCache; error?: string } = await res.json();
@@ -149,6 +159,7 @@ export default function AnalizarContent() {
     setProgressLabel(null);
     setAsignaciones({});
     setAnexo2Overrides({});
+    setAnexo2Firma({});
     setFromCache(false);
     setCacheUpdatedAt(null);
     setNombreProyecto(null);
@@ -165,6 +176,7 @@ export default function AnalizarContent() {
       setResult(null);
       setAsignaciones({});
       setAnexo2Overrides({});
+      setAnexo2Firma({});
       setFromCache(false);
       setCacheUpdatedAt(null);
       setNombreProyecto(null);
@@ -223,6 +235,7 @@ export default function AnalizarContent() {
               setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
               setNombreProyecto(cacheData.proceso.nombreProyecto);
               setAnexo2Overrides(cacheData.proceso.anexo2Overrides ?? {});
+              setAnexo2Firma(cacheData.proceso.anexo2Firma ?? {});
               setSaveState("saved");
               lastAnalysisRef.current = {
                 cacheKey: cacheData.proceso.numeroProceso,
@@ -278,7 +291,7 @@ export default function AnalizarContent() {
         const cacheKey = numero || autoNombre;
         if (!numero) setNumeroProceso(cacheKey);
 
-        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename), {});
+        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename), {}, {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
         setStatus("error");
@@ -336,21 +349,41 @@ export default function AnalizarContent() {
         result,
         lastAnalysisRef.current.documentos,
         anexo2Overrides,
+        anexo2Firma,
       );
     }
-  }, [result, guardarResultado, anexo2Overrides]);
+  }, [result, guardarResultado, anexo2Overrides, anexo2Firma]);
 
   const handleAnexo2OverrideChange = useCallback(
     (rowIndex: number, field: keyof Anexo2Overrides, value: string) => {
       setAnexo2Overrides((prev) => {
         const next = { ...prev, [rowIndex]: { ...prev[rowIndex], [field]: value } };
         if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, next);
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, next, anexo2Firma);
         }
         return next;
       });
     },
-    [result, guardarResultado],
+    [result, guardarResultado, anexo2Firma],
+  );
+
+  const handleAnexo2FirmaChange = useCallback(
+    (field: keyof Anexo2Firma, value: string) => {
+      setAnexo2Firma((prev) => {
+        const next = { ...prev, [field]: value };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(
+            lastAnalysisRef.current.cacheKey,
+            result,
+            lastAnalysisRef.current.documentos,
+            anexo2Overrides,
+            next,
+          );
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado, anexo2Overrides],
   );
 
   const isBusy = status === "uploading" || status === "extracting";
@@ -367,6 +400,7 @@ export default function AnalizarContent() {
         result,
         lastAnalysisRef.current.documentos,
         anexo2Overrides,
+        anexo2Firma,
       );
       if (ok) {
         router.push("/");
@@ -377,7 +411,7 @@ export default function AnalizarContent() {
       "No se pudo guardar este análisis en la base de datos todavía. Si sales ahora, se perderá. ¿Salir de todas formas?",
     );
     if (leaveAnyway) router.push("/");
-  }, [isBusy, result, saveState, guardarResultado, router, anexo2Overrides]);
+  }, [isBusy, result, saveState, guardarResultado, router, anexo2Overrides, anexo2Firma]);
 
   const activeFile = documents[activeIndex] ?? null;
   const hasContent = documents.length > 0 || result !== null;
@@ -568,6 +602,8 @@ export default function AnalizarContent() {
             onAssignTecnico={handleAssignTecnico}
             anexo2Overrides={anexo2Overrides}
             onAnexo2OverrideChange={handleAnexo2OverrideChange}
+            anexo2Firma={anexo2Firma}
+            onAnexo2FirmaChange={handleAnexo2FirmaChange}
           />
         </section>
       </main>
