@@ -9,6 +9,7 @@ import TecnicosManager from "@/components/TecnicosManager";
 import ProcesosManager from "@/components/ProcesosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import { detectProcessCode } from "@/lib/detectProcessCode";
+import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
 import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
 import type { ProcesoCache } from "@/types/proceso";
@@ -167,27 +168,41 @@ export default function Home() {
           throw new Error(message || "Error al procesar los documentos.");
         }
 
-        setResult(data as ExtractionResult);
+        const extractionResult = data as ExtractionResult;
+        setResult(extractionResult);
         setStatus("done");
 
-        if (numero) {
-          // Best-effort cache write — a failure here shouldn't affect the
-          // result already shown to the user.
-          fetch("/api/procesos", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              numeroProceso: numero,
-              result: data,
-              documentos: extracted.map((d) => d.filename),
-            }),
+        // Always generate the CLIENTE-AÑOMESDIA-DESCRIPCION project name from
+        // the analysis itself — it must not depend on an official número de
+        // proceso being detected, since many pliegos won't have one.
+        const autoNombre = generarNombreProyecto(
+          extractionResult.identificacion?.cliente ?? "",
+          extractionResult.identificacion?.descripcion ?? "",
+        );
+        setNombreProyecto(autoNombre);
+
+        // When there's no official número de proceso, use the generated name
+        // as the storage key so the analysis still gets saved and shows up
+        // in the "Procesos" menu.
+        const cacheKey = numero || autoNombre;
+        if (!numero) setNumeroProceso(cacheKey);
+
+        // Best-effort cache write — a failure here shouldn't affect the
+        // result already shown to the user.
+        fetch("/api/procesos", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            numeroProceso: cacheKey,
+            result: extractionResult,
+            documentos: extracted.map((d) => d.filename),
+          }),
+        })
+          .then((res) => res.json())
+          .then((saved: { proceso?: ProcesoCache }) => {
+            if (saved?.proceso?.nombreProyecto) setNombreProyecto(saved.proceso.nombreProyecto);
           })
-            .then((res) => res.json())
-            .then((saved: { proceso?: ProcesoCache }) => {
-              if (saved?.proceso?.nombreProyecto) setNombreProyecto(saved.proceso.nombreProyecto);
-            })
-            .catch(() => {});
-        }
+          .catch(() => {});
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
         setStatus("error");
