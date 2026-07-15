@@ -75,3 +75,26 @@ body {
 .react-pdf__Page__canvas {
   border-radius: 2px;
 }
+
+/* "Descargar PDF" en la vista previa del Anexo 2 usa window.print() — al
+   imprimir, solo se muestra el documento (#anexo2-print-area), sin la UI
+   de la app ni el resto de la página. */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  #anexo2-print-area,
+  #anexo2-print-area * {
+    visibility: visible;
+  }
+
+  #anexo2-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0;
+    border-radius: 0;
+  }
+}

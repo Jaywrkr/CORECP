@@ -11,6 +11,7 @@ import type {
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
+import { descargarBlob, generarAnexo2Docx } from "@/lib/exportarAnexo2Docx";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -73,6 +74,30 @@ export default function RequisitosPanel({
 }: RequisitosPanelProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [editMode, setEditMode] = useState(false);
+  const [exportingWord, setExportingWord] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const handleDescargarPdf = () => window.print();
+
+  const handleDescargarWord = async () => {
+    if (!result) return;
+    setExportingWord(true);
+    setExportError(null);
+    try {
+      const blob = await generarAnexo2Docx({
+        filas: result.anexo2Sugerido,
+        tecnicos,
+        asignaciones,
+        overrides: anexo2Overrides,
+        firma: anexo2Firma,
+      });
+      descargarBlob(blob, "Anexo_2_Personal_Tecnico.docx");
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
+    } finally {
+      setExportingWord(false);
+    }
+  };
 
   if (status === "idle") {
     return (
@@ -334,6 +359,21 @@ export default function RequisitosPanel({
               </h2>
               <div className="flex items-center gap-2">
                 <button
+                  onClick={handleDescargarPdf}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Descargar PDF
+                </button>
+                <button
+                  onClick={handleDescargarWord}
+                  disabled={exportingWord}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {exportingWord ? "Generando…" : "Descargar Word"}
+                </button>
+                <button
                   onClick={() => setEditMode((v) => !v)}
                   className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
                   style={{
@@ -354,6 +394,11 @@ export default function RequisitosPanel({
               </div>
             </div>
             <div className="min-h-0 flex-1 overflow-auto p-4">
+              {exportError && (
+                <p className="mb-3 text-xs" style={{ color: "var(--danger)" }}>
+                  {exportError}
+                </p>
+              )}
               <Anexo2Preview
                 filas={anexo2Sugerido}
                 tecnicos={tecnicos}

@@ -51,19 +51,26 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 7. El botón **"Vista previa Anexo 2"** abre el documento completo replicando
    el formato exacto de la plantilla oficial (`Anexo_2_personal_tecnico.docx`):
    fondo blanco, membrete con el logo de CORESOLUTIONS y datos de contacto,
-   tipografía Calibri, título en azul (#1F4E79) con línea inferior, tabla con
-   encabezado azul marino (#44546A) y texto blanco en negrita, párrafos
-   justificados — título, párrafo introductorio, la tabla de "Cumplimiento de
-   personal técnico mínimo", la sección de "Títulos profesionales y formación
-   académica" (con los documentos Senescyt de cada técnico asignado insertados
-   automáticamente), la sección de "Certificaciones" (ídem, con los documentos
-   de certificaciones) y el bloque de firma (representante, cargo, empresa,
-   ciudad y fecha). El botón **"Editar todo"** dentro de esa vista previa
-   vuelve editable a mano absolutamente todo el texto — celdas de la tabla,
-   párrafos introductorios, membrete y
-   firma — sin depender de lo que detectó la IA o del técnico asignado; los
-   cambios se guardan automáticamente al salir de cada campo, persistidos
-   junto con el resto del análisis en Vercel Blob.
+   tipografía Calibri en los mismos tamaños que el original, título en azul
+   (#1F4E79) con línea inferior, tabla con encabezado azul marino (#44546A) y
+   texto blanco en negrita, párrafos justificados. El documento respeta el
+   mismo orden y paginación que el archivo real — cada sección empieza en una
+   página nueva: (1) portada con título, resumen de la empresa y la tabla de
+   "Cumplimiento de personal técnico mínimo"; (2) "Títulos profesionales y
+   formación académica" (con los documentos Senescyt de cada técnico asignado
+   insertados automáticamente); (3) "Certificaciones de consultores y
+   especialistas técnicos" (ídem); (4) bloque de firma, con espacio en blanco
+   reservado para firmar antes de la línea y el nombre. El botón
+   **"Editar todo"** vuelve editable a mano absolutamente todo el texto —
+   celdas de la tabla, párrafos introductorios, membrete y firma — sin
+   depender de lo que detectó la IA o del técnico asignado; la fecha de firma
+   es siempre editable, incluso fuera de "Editar todo", porque cambia en cada
+   proceso. Los cambios se guardan automáticamente al salir de cada campo,
+   persistidos junto con el resto del análisis en Vercel Blob. Los botones
+   **"Descargar PDF"** (usa el diálogo de impresión del navegador, ya
+   configurado para mostrar solo el documento) y **"Descargar Word"** (genera
+   un `.docx` real con la misma estructura, tabla e imágenes de los técnicos,
+   usando la librería `docx`) permiten obtener el archivo final.
 8. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
    (campo editable en la barra superior; se intenta autodetectar del propio
    texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si no hay número
@@ -123,3 +130,6 @@ y `/api/procesos` responden con un error claro en vez de fallar en silencio.
 - `@anthropic-ai/sdk` para la extracción de requisitos vía Claude
 - `@vercel/blob` para persistir el roster de técnicos y el caché de análisis
   por proceso, cada uno como documentos JSON
+- `docx` para generar el archivo Word del Anexo 2 con el mismo formato que la
+  plantilla oficial; "Descargar PDF" usa el diálogo de impresión del
+  navegador sobre esa misma vista previa
