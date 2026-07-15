@@ -58,7 +58,9 @@ export default function RequisitosPanel({
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
         <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
-          Sube uno o más pliegos en la columna izquierda para comenzar el análisis.
+          {documentCount > 0
+            ? 'Presiona "Analizar" para procesar los documentos con IA.'
+            : "Sube uno o más pliegos en la columna izquierda para comenzar."}
         </p>
       </div>
     );

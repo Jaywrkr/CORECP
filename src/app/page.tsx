@@ -1,49 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import dynamic from "next/dynamic";
-import UploadZone from "@/components/UploadZone";
-import DocumentTabs from "@/components/DocumentTabs";
-import RequisitosPanel from "@/components/RequisitosPanel";
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import TecnicosManager from "@/components/TecnicosManager";
-import ProcesosManager from "@/components/ProcesosManager";
-import { extractPdfText } from "@/lib/extractPdfText";
-import { detectProcessCode } from "@/lib/detectProcessCode";
-import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
-import type { ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
-import type { ProcesoCache } from "@/types/proceso";
-
-const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
-  ssr: false,
-  loading: () => (
-    <div className="flex h-full items-center justify-center text-sm" style={{ color: "var(--text-tertiary)" }}>
-      Cargando visor de PDF…
-    </div>
-  ),
-});
-
-function fileKey(file: File): string {
-  return `${file.name}-${file.size}-${file.lastModified}`;
-}
+import type { ProcesoResumen } from "@/types/proceso";
 
 export default function Home() {
-  const [documents, setDocuments] = useState<File[]>([]);
-  const [activeIndex, setActiveIndex] = useState(0);
-  const [status, setStatus] = useState<ExtractionStatus>("idle");
-  const [result, setResult] = useState<ExtractionResult | null>(null);
+  const [procesos, setProcesos] = useState<ProcesoResumen[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [query, setQuery] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [progressLabel, setProgressLabel] = useState<string | null>(null);
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [showTecnicos, setShowTecnicos] = useState(false);
-  const [showProcesos, setShowProcesos] = useState(false);
-  const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
 
-  const [numeroProceso, setNumeroProceso] = useState("");
-  const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
-  const [fromCache, setFromCache] = useState(false);
-  const [cacheUpdatedAt, setCacheUpdatedAt] = useState<string | null>(null);
+  useEffect(() => {
+    fetch("/api/procesos")
+      .then((res) => res.json())
+      .then((data) => setProcesos(Array.isArray(data?.procesos) ? data.procesos : []))
+      .catch(() => setError("No se pudo cargar la lista de procesos."))
+      .finally(() => setLoading(false));
+  }, []);
 
   useEffect(() => {
     fetch("/api/tecnicos")
@@ -52,227 +30,28 @@ export default function Home() {
       .catch(() => setTecnicos([]));
   }, []);
 
-  const handleAssignTecnico = useCallback((rowIndex: number, tecnicoId: string) => {
-    setAsignaciones((prev) => {
-      if (!tecnicoId) {
-        const next = { ...prev };
-        delete next[rowIndex];
-        return next;
-      }
-      return { ...prev, [rowIndex]: tecnicoId };
-    });
-  }, []);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return procesos;
+    return procesos.filter(
+      (p) =>
+        p.nombreProyecto.toLowerCase().includes(q) || p.numeroProceso.toLowerCase().includes(q),
+    );
+  }, [procesos, query]);
 
-  const runExtraction = useCallback(
-    async (docs: File[], options?: { forceRefresh?: boolean }) => {
-      if (docs.length === 0) {
-        setStatus("idle");
-        setResult(null);
-        setError(null);
-        setProgressLabel(null);
-        setAsignaciones({});
-        setFromCache(false);
-        setCacheUpdatedAt(null);
-        setNombreProyecto(null);
-        return;
-      }
-
-      setStatus("uploading");
-      setError(null);
-      setResult(null);
-      setAsignaciones({});
-      setFromCache(false);
-      setCacheUpdatedAt(null);
-      setNombreProyecto(null);
-
-      try {
-        // Extract text for every document in the browser first — sending only
-        // the text (not the raw PDF bytes) keeps the request well under
-        // hosting body-size limits and avoids uploading the files at all.
-        const extracted: { filename: string; text: string }[] = [];
-        for (let i = 0; i < docs.length; i++) {
-          setProgressLabel(
-            docs.length > 1 ? `Leyendo documento ${i + 1} de ${docs.length}…` : "Leyendo el texto del PDF…",
-          );
-          let text: string;
-          try {
-            text = await extractPdfText(docs[i]);
-          } catch {
-            throw new Error(
-              `No se pudo leer "${docs[i].name}". Verifica que el archivo no esté dañado o protegido.`,
-            );
-          }
-          if (text) {
-            extracted.push({ filename: docs[i].name, text });
-          }
-        }
-
-        if (extracted.length === 0) {
-          throw new Error(
-            "No se pudo extraer texto de ningún documento. Es posible que sean escaneos (imágenes) sin texto seleccionable.",
-          );
-        }
-
-        // Prefer whatever número de proceso the user already entered; only
-        // auto-detect (and pre-fill the field) when they haven't set one.
-        let numero = numeroProceso.trim();
-        if (!numero) {
-          for (const doc of extracted) {
-            const guess = detectProcessCode(doc.text);
-            if (guess) {
-              numero = guess;
-              setNumeroProceso(guess);
-              break;
-            }
-          }
-        }
-
-        if (numero && !options?.forceRefresh) {
-          setProgressLabel("Buscando un análisis previo para este proceso…");
-          try {
-            const cacheRes = await fetch(`/api/procesos?numero=${encodeURIComponent(numero)}`);
-            const cacheData: { proceso?: ProcesoCache } | null = await cacheRes.json().catch(() => null);
-            if (cacheRes.ok && cacheData?.proceso) {
-              setResult(cacheData.proceso.result);
-              setFromCache(true);
-              setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
-              setNombreProyecto(cacheData.proceso.nombreProyecto);
-              setStatus("done");
-              setProgressLabel(null);
-              return;
-            }
-          } catch {
-            // Cache lookup failing shouldn't block a fresh analysis — fall through.
-          }
-        }
-
-        setProgressLabel(null);
-        setStatus("extracting");
-        const res = await fetch("/api/extract", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ documents: extracted }),
-        });
-
-        let data: unknown;
-        try {
-          data = await res.json();
-        } catch {
-          throw new Error(
-            `El servidor respondió de forma inesperada (código ${res.status}). Intenta de nuevo.`,
-          );
-        }
-
-        if (!res.ok) {
-          const message = (data as { error?: string } | null)?.error;
-          throw new Error(message || "Error al procesar los documentos.");
-        }
-
-        const extractionResult = data as ExtractionResult;
-        setResult(extractionResult);
-        setStatus("done");
-
-        // Always generate the CLIENTE-AÑOMESDIA-DESCRIPCION project name from
-        // the analysis itself — it must not depend on an official número de
-        // proceso being detected, since many pliegos won't have one.
-        const autoNombre = generarNombreProyecto(
-          extractionResult.identificacion?.cliente ?? "",
-          extractionResult.identificacion?.descripcion ?? "",
-        );
-        setNombreProyecto(autoNombre);
-
-        // When there's no official número de proceso, use the generated name
-        // as the storage key so the analysis still gets saved and shows up
-        // in the "Procesos" menu.
-        const cacheKey = numero || autoNombre;
-        if (!numero) setNumeroProceso(cacheKey);
-
-        // Best-effort cache write — a failure here shouldn't affect the
-        // result already shown to the user.
-        fetch("/api/procesos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            numeroProceso: cacheKey,
-            result: extractionResult,
-            documentos: extracted.map((d) => d.filename),
-          }),
-        })
-          .then((res) => res.json())
-          .then((saved: { proceso?: ProcesoCache }) => {
-            if (saved?.proceso?.nombreProyecto) setNombreProyecto(saved.proceso.nombreProyecto);
-          })
-          .catch(() => {});
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
-        setStatus("error");
-      } finally {
-        setProgressLabel(null);
-      }
-    },
-    [numeroProceso],
-  );
-
-  const handleFilesSelected = useCallback(
-    (newFiles: File[]) => {
-      const existingKeys = new Set(documents.map(fileKey));
-      const merged = [...documents, ...newFiles.filter((f) => !existingKeys.has(fileKey(f)))];
-      if (merged.length === documents.length) return;
-      setDocuments(merged);
-      void runExtraction(merged);
-    },
-    [documents, runExtraction],
-  );
-
-  const handleRemoveDocument = useCallback(
-    (index: number) => {
-      const next = documents.filter((_, i) => i !== index);
-      setDocuments(next);
-      setActiveIndex((prev) => Math.max(0, prev >= index ? prev - 1 : prev));
-      void runExtraction(next);
-    },
-    [documents, runExtraction],
-  );
-
-  const handleReset = useCallback(() => {
-    setDocuments([]);
-    setActiveIndex(0);
-    setStatus("idle");
-    setResult(null);
+  const handleDelete = async (numero: string) => {
     setError(null);
-    setProgressLabel(null);
-    setAsignaciones({});
-    setNumeroProceso("");
-    setNombreProyecto(null);
-    setFromCache(false);
-    setCacheUpdatedAt(null);
-  }, []);
-
-  const handleOpenProceso = useCallback((proceso: ProcesoCache) => {
-    setDocuments([]);
-    setActiveIndex(0);
-    setError(null);
-    setProgressLabel(null);
-    setAsignaciones({});
-    setNumeroProceso(proceso.numeroProceso);
-    setNombreProyecto(proceso.nombreProyecto);
-    setResult(proceso.result);
-    setFromCache(true);
-    setCacheUpdatedAt(proceso.actualizadoEn);
-    setStatus("done");
-  }, []);
-
-  const handleRetry = useCallback(() => {
-    if (documents.length > 0) void runExtraction(documents);
-  }, [documents, runExtraction]);
-
-  const handleForceReanalyze = useCallback(() => {
-    if (documents.length > 0) void runExtraction(documents, { forceRefresh: true });
-  }, [documents, runExtraction]);
-
-  const isBusy = status === "uploading" || status === "extracting";
-  const activeFile = documents[activeIndex] ?? null;
-  const hasContent = documents.length > 0 || result !== null;
+    try {
+      const res = await fetch(`/api/procesos?numero=${encodeURIComponent(numero)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "No se pudo eliminar el proceso.");
+      setProcesos((prev) => prev.filter((p) => p.numeroProceso !== numero));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Error desconocido al eliminar.");
+    }
+  };
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -304,31 +83,19 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            onClick={() => setShowProcesos(true)}
-            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-          >
-            Procesos
-          </button>
-          <button
             onClick={() => setShowTecnicos(true)}
             className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
             style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
           >
             Técnicos
           </button>
-          {documents.length > 0 && (
-            <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} compact />
-          )}
-          {hasContent && (
-            <button
-              onClick={handleReset}
-              className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-            >
-              Empezar de nuevo
-            </button>
-          )}
+          <Link
+            href="/analizar"
+            className="rounded-md px-3 py-1.5 text-xs font-medium text-white transition-opacity hover:opacity-90"
+            style={{ background: "var(--accent)" }}
+          >
+            + Nuevo proceso
+          </Link>
         </div>
       </header>
 
@@ -340,107 +107,62 @@ export default function Home() {
         />
       )}
 
-      {showProcesos && (
-        <ProcesosManager onClose={() => setShowProcesos(false)} onOpenProceso={handleOpenProceso} />
-      )}
-
-      {hasContent && (
-        <div
-          className="flex flex-wrap items-center gap-3 border-b px-6 py-2.5"
-          style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
-        >
-          <label className="flex items-center gap-2 text-xs" style={{ color: "var(--text-tertiary)" }}>
-            Número de proceso
-            <input
-              value={numeroProceso}
-              onChange={(e) => setNumeroProceso(e.target.value)}
-              disabled={isBusy}
-              placeholder="ej. SIE-EERSSA-2026-023"
-              className="rounded border px-2 py-1 text-xs"
-              style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)" }}
-            />
-          </label>
-
-          {nombreProyecto && (
-            <span
-              className="rounded px-2 py-0.5 text-[11px] font-medium"
-              style={{ background: "var(--bg-elevated)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-              title="Nombre de proyecto generado automáticamente: CLIENTE-AÑOMESDIA-DESCRIPCIÓN"
-            >
-              {nombreProyecto}
-            </span>
-          )}
-
-          {fromCache && (
-            <>
-              <span
-                className="rounded px-2 py-0.5 text-[11px] font-medium"
-                style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
-              >
-                Cargado desde caché{cacheUpdatedAt ? ` · ${new Date(cacheUpdatedAt).toLocaleString("es-EC")}` : ""} — no se usó IA
-              </span>
-              <button
-                onClick={handleForceReanalyze}
-                disabled={isBusy}
-                className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
-                style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-              >
-                Reanalizar con IA
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      <main className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Columna izquierda: PDF(s) */}
-        <section
-          className="flex min-h-[50vh] flex-1 flex-col border-b lg:min-h-0 lg:w-1/2 lg:border-r lg:border-b-0"
-          style={{ borderColor: "var(--border)" }}
-        >
-          {!activeFile ? (
-            <div className="flex flex-1 items-center justify-center p-6">
-              <div className="w-full max-w-md">
-                {result && !documents.length ? (
-                  <p className="mb-4 text-center text-xs" style={{ color: "var(--text-tertiary)" }}>
-                    Este proceso se cargó desde el caché — el PDF original no se guarda, solo el
-                    resultado. Sube el pliego de nuevo si necesitas visualizarlo.
-                  </p>
-                ) : null}
-                <UploadZone onFilesSelected={handleFilesSelected} disabled={isBusy} />
-              </div>
-            </div>
-          ) : (
-            <>
-              <DocumentTabs
-                files={documents}
-                activeIndex={activeIndex}
-                onSelect={setActiveIndex}
-                onRemove={handleRemoveDocument}
-                disabled={isBusy}
-              />
-              <PdfViewer key={fileKey(activeFile)} file={activeFile} />
-            </>
-          )}
-        </section>
-
-        {/* Columna derecha: requisitos consolidados */}
-        <section
-          className="flex min-h-[50vh] flex-1 flex-col overflow-y-auto lg:min-h-0 lg:w-1/2"
-          style={{ background: "var(--bg-panel)" }}
-        >
-          <RequisitosPanel
-            status={status}
-            result={result}
-            error={error}
-            onRetry={handleRetry}
-            documentCount={documents.length}
-            progressLabel={progressLabel}
-            tecnicos={tecnicos}
-            asignaciones={asignaciones}
-            onAssignTecnico={handleAssignTecnico}
+      <main className="mx-auto w-full max-w-3xl flex-1 px-6 py-8">
+        <label className="mb-6 block">
+          <span className="sr-only">Buscar proceso</span>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Buscar proceso por nombre o número…"
+            className="w-full rounded-md border px-3 py-2.5 text-sm outline-none focus:border-[var(--accent)]"
+            style={{ borderColor: "var(--border)", background: "var(--bg-elevated)", color: "var(--text-primary)" }}
           />
-        </section>
+        </label>
+
+        {error && (
+          <p className="mb-4 text-xs" style={{ color: "var(--danger)" }}>
+            {error}
+          </p>
+        )}
+
+        {loading ? (
+          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+            Cargando…
+          </p>
+        ) : filtered.length === 0 ? (
+          <p className="text-sm" style={{ color: "var(--text-tertiary)" }}>
+            {procesos.length === 0
+              ? 'Aún no hay procesos analizados. Usa "+ Nuevo proceso" para empezar.'
+              : "Ningún proceso coincide con la búsqueda."}
+          </p>
+        ) : (
+          <ul className="flex flex-col gap-2">
+            {filtered.map((p) => (
+              <li
+                key={p.numeroProceso}
+                className="flex items-center justify-between gap-3 rounded-md border px-4 py-3 text-sm"
+                style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
+              >
+                <Link href={`/analizar?numero=${encodeURIComponent(p.numeroProceso)}`} className="min-w-0 flex-1">
+                  <div className="truncate font-medium" style={{ color: "var(--text-primary)" }}>
+                    {p.nombreProyecto}
+                  </div>
+                  <div className="truncate text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    {p.numeroProceso} · {new Date(p.actualizadoEn).toLocaleString("es-EC")}
+                    {p.documentos.length > 0 ? ` · ${p.documentos.length} documento(s)` : ""}
+                  </div>
+                </Link>
+                <button
+                  onClick={() => handleDelete(p.numeroProceso)}
+                  className="shrink-0 rounded px-2 py-1 text-xs hover:bg-white/5"
+                  style={{ color: "var(--danger)" }}
+                >
+                  Eliminar
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </main>
     </div>
   );
