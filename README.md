@@ -133,3 +133,21 @@ y `/api/procesos` responden con un error claro en vez de fallar en silencio.
 - `docx` para generar el archivo Word del Anexo 2 con el mismo formato que la
   plantilla oficial; "Descargar PDF" usa el diálogo de impresión del
   navegador sobre esa misma vista previa
+
+## Pruebas end-to-end
+
+```bash
+npm run test:e2e
+```
+
+Corre la suite de Playwright en `e2e/` contra un servidor de desarrollo local
+(arrancado automáticamente). Todas las llamadas a `/api/*` se simulan con
+`page.route` (ver `e2e/mocks.ts`), así que no hace falta `ANTHROPIC_API_KEY`
+ni `BLOB_READ_WRITE_TOKEN` para correrlas. Cubre: el buscador de procesos, el
+análisis manual (sin auto-análisis, caché por número de proceso, guardado al
+salir con "Volver"), el roster de técnicos (alta y documentos multi-archivo),
+y el Anexo 2 (tolerancia de "afines" en la coincidencia de título, la
+regresión del override vacío, el orden/paginación de la vista previa, la
+fecha siempre editable y la exportación a Word). Se ejecuta automáticamente
+en GitHub Actions (`.github/workflows/e2e.yml`) en cada push a `main` y en
+cada pull request.
