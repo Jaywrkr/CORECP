@@ -99,7 +99,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "No se encontró el técnico." }, { status: 404 });
     }
 
-    tecnicos[index] = { id, ...input };
+    tecnicos[index] = { ...tecnicos[index], ...input, id };
     await writeTecnicos(tecnicos);
 
     return NextResponse.json({ tecnicos });

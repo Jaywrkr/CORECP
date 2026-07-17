@@ -1,8 +1,18 @@
 "use client";
 
+import type { CSSProperties } from "react";
 import type { Anexo2Fila, Anexo2Firma, Anexo2Overrides, Anexo2OverridesMap } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
-import { formatFechaLarga } from "@/lib/formatFechaLarga";
+import {
+  AZUL_BORDE,
+  AZUL_TITULO,
+  FIRMA_DEFAULT,
+  FONT_FAMILY,
+  NAVY_TABLA,
+  nivelEstudioLineas,
+  resolverValor,
+  titulacionLineas,
+} from "@/lib/anexo2Shared";
 
 interface Anexo2PreviewProps {
   filas: Anexo2Fila[];
@@ -18,45 +28,16 @@ interface Anexo2PreviewProps {
 const HEADERS = ["Nro", "Función", "Nombre", "Nivel de estudio", "Titulación académica"];
 const COL_WIDTHS = ["5%", "24%", "19%", "21%", "31%"];
 
-// Colores y tipografía tomados directamente de la plantilla oficial
-// (Anexo_2_personal_tecnico.docx): título #1F4E79 con borde inferior
-// #5B9BD5, encabezado de tabla #44546A con texto blanco, fuente Calibri.
-const AZUL_TITULO = "#1F4E79";
-const AZUL_BORDE = "#5B9BD5";
-const NAVY_TABLA = "#44546A";
-const FONT_FAMILY = "Calibri, Carlito, 'Segoe UI', Arial, sans-serif";
-
-const FIRMA_DEFAULT: Required<Anexo2Firma> = {
-  encabezadoDireccion: "Cuenca: Av. 3 de Noviembre 21-176 y Juan Pablo I",
-  encabezadoTelefonos: "Teléfonos: +593 (07) 284-1495   (07) 284-3991",
-  encabezadoEmail: "E-mail: gerencia@coresolutions.com.ec",
-  introEmpresa:
-    "Para asegurar que los servicios de implementación y soporte post-instalación sean oportunos y eficientes, CORESOLUTIONS cuenta con un equipo de consultores comerciales y especialistas técnicos certificados, para garantizar tiempos de respuesta oportunos, frente a requerimientos e incidentes críticos para resolución de problemas con profesionales expertos.",
-  introTitulos:
-    "Se indican a continuación los títulos académicos de los especialistas técnicos asignados al proyecto, según consulta realizada en https://www.senescyt.gob.ec/web/guest/consultas. Dicho documento incluye también la información correspondiente a certificados de riesgos laborales vigentes del personal técnico.",
-  introCertificaciones:
-    "A continuación, constan las certificaciones, con lo cual podemos garantizar el nivel de conocimientos requeridos y cumplir con lo solicitado en los pliegos.",
-  representanteNombre: "ING. JUAN CARLOS JARAMILLO",
-  representanteCargo: "REPRESENTANTE LEGAL",
-  empresa: "CORESOLUTIONS S.A.",
-  ciudadFecha: `Cuenca, ${formatFechaLarga()}`,
+// Tamaños tomados literalmente de los puntos usados en el .docx (1pt = 4/3px).
+const FS = {
+  titulo1: "24px", // 18pt
+  titulo2: "21px", // 16pt
+  body: "15px", // 11pt
+  tabla: "11px", // 8pt
+  membrete: "11px", // 8pt
 };
 
-function nivelEstudioLineas(tecnico?: Tecnico): string[] {
-  if (!tecnico) return [];
-  const lineas: string[] = [];
-  if (tecnico.tituloAcademico) lineas.push("Tercer nivel con título");
-  if (tecnico.cuartoNivelTitulo) lineas.push("Cuarto nivel con título");
-  return lineas;
-}
-
-function titulacionLineas(tecnico?: Tecnico): string[] {
-  if (!tecnico) return [];
-  const lineas: string[] = [];
-  if (tecnico.tituloAcademico) lineas.push(tecnico.tituloAcademico);
-  if (tecnico.cuartoNivelTitulo) lineas.push(tecnico.cuartoNivelTitulo);
-  return lineas;
-}
+const PAGE_BREAK_STYLE: CSSProperties = { breakBefore: "page", pageBreakBefore: "always" };
 
 export default function Anexo2Preview({
   filas,
@@ -74,14 +55,15 @@ export default function Anexo2Preview({
 
   return (
     <div
+      id="anexo2-print-area"
       className="flex flex-col gap-5 rounded-md p-8"
-      style={{ background: "#ffffff", color: "#000000", fontFamily: FONT_FAMILY }}
+      style={{ background: "#ffffff", color: "#000000", fontFamily: FONT_FAMILY, fontSize: FS.body }}
     >
-      {/* Encabezado / letterhead */}
+      {/* Página 1: membrete, título, resumen de la empresa y tabla de cumplimiento */}
       <div className="flex items-start justify-between gap-4 border-b pb-3" style={{ borderColor: "#ccc" }}>
         {/* eslint-disable-next-line @next/next/no-img-element -- static brand asset served from /public, not optimizable content */}
         <img src="/coresolutions-logo.png" alt="CORESOLUTIONS" className="h-9 w-auto" />
-        <div className="text-right text-[10px] leading-snug" style={{ color: "#333" }}>
+        <div className="text-right leading-snug" style={{ color: "#333", fontSize: FS.membrete }}>
           <EditableParagraph
             editable={editable}
             value={f.encabezadoDireccion}
@@ -107,8 +89,8 @@ export default function Anexo2Preview({
       </div>
 
       <h1
-        className="pb-1.5 text-2xl font-bold"
-        style={{ color: AZUL_TITULO, borderBottom: `1px solid ${AZUL_BORDE}` }}
+        className="pb-1.5 font-bold"
+        style={{ color: AZUL_TITULO, borderBottom: `1px solid ${AZUL_BORDE}`, fontSize: FS.titulo1 }}
       >
         ANEXO 2: PERSONAL TÉCNICO
       </h1>
@@ -120,15 +102,15 @@ export default function Anexo2Preview({
       />
 
       <div>
-        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
+        <h2 className="mb-2 font-bold" style={{ color: AZUL_TITULO, fontSize: FS.titulo2 }}>
           Cumplimiento de personal técnico mínimo
         </h2>
-        <p className="mb-3 text-justify text-sm">
+        <p className="mb-3 text-justify" style={{ fontSize: FS.body }}>
           A continuación, indicamos el personal técnico de CORESOLUTIONS, con lo cual se cumple lo
           requerido en los términos de referencia:
         </p>
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse text-sm">
+          <table className="w-full min-w-[640px] border-collapse" style={{ fontSize: FS.tabla }}>
             <colgroup>
               {COL_WIDTHS.map((w, i) => (
                 <col key={i} style={{ width: w }} />
@@ -139,7 +121,7 @@ export default function Anexo2Preview({
                 {HEADERS.map((h) => (
                   <th
                     key={h}
-                    className="border px-2 py-1.5 text-center text-xs font-bold"
+                    className="border px-2 py-1.5 text-center font-bold"
                     style={{ background: NAVY_TABLA, color: "#ffffff", borderColor: "#000" }}
                   >
                     {h}
@@ -151,14 +133,20 @@ export default function Anexo2Preview({
               {filas.map((row, i) => {
                 const tecnico = tecnicos.find((t) => t.id === asignaciones[i]);
                 const overrideRow = overrides[i] ?? {};
-                const funcionValor = overrideRow.funcion ?? row.funcion ?? "";
-                const nombreValor = overrideRow.nombre ?? (tecnico ? `${i + 1}.1 ${tecnico.nombre}` : "");
-                const nivelValor = overrideRow.nivelEstudio ?? nivelEstudioLineas(tecnico).join("\n");
-                const tituloValor = overrideRow.titulacionAcademica ?? titulacionLineas(tecnico).join("\n");
+                const funcionValor = resolverValor(overrideRow.funcion, row.funcion ?? "");
+                const nombreValor = resolverValor(
+                  overrideRow.nombre,
+                  tecnico ? `${i + 1}.1 ${tecnico.nombre}` : "",
+                );
+                const nivelValor = resolverValor(overrideRow.nivelEstudio, nivelEstudioLineas(tecnico).join("\n"));
+                const tituloValor = resolverValor(
+                  overrideRow.titulacionAcademica,
+                  titulacionLineas(tecnico).join("\n"),
+                );
 
                 return (
                   <tr key={i}>
-                    <td className="border px-2 py-2 align-top text-xs" style={{ borderColor: "#000" }}>
+                    <td className="border px-2 py-2 align-top" style={{ borderColor: "#000" }}>
                       {i + 1}
                     </td>
                     <EditableCell
@@ -192,8 +180,9 @@ export default function Anexo2Preview({
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
+      {/* Página 2: Títulos profesionales y formación académica */}
+      <div style={PAGE_BREAK_STYLE}>
+        <h2 className="mb-2 font-bold" style={{ color: AZUL_TITULO, fontSize: FS.titulo2 }}>
           Títulos profesionales y formación académica
         </h2>
         <EditableParagraph
@@ -218,8 +207,9 @@ export default function Anexo2Preview({
         </div>
       </div>
 
-      <div>
-        <h2 className="mb-2 text-lg font-bold" style={{ color: AZUL_TITULO }}>
+      {/* Página 3: Certificaciones de consultores y especialistas técnicos */}
+      <div style={PAGE_BREAK_STYLE}>
+        <h2 className="mb-2 font-bold" style={{ color: AZUL_TITULO, fontSize: FS.titulo2 }}>
           Certificaciones de consultores y especialistas técnicos
         </h2>
         <EditableParagraph
@@ -244,34 +234,35 @@ export default function Anexo2Preview({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1">
-        <p className="text-sm">Para constancia de lo ofertado, suscribo este Anexo,</p>
-        <p className="text-sm" style={{ color: "#999" }}>
+      {/* Página 4: Firma */}
+      <div className="flex flex-col gap-1" style={PAGE_BREAK_STYLE}>
+        <p style={{ fontSize: FS.body }}>Para constancia de lo ofertado, suscribo este Anexo,</p>
+        {/* Espacio en blanco para la firma física o digital */}
+        <div style={{ height: "80px" }} />
+        <p style={{ fontSize: FS.body, color: "#999" }}>
           -------------------------------------------------------
         </p>
         <EditableParagraph
           editable={editable}
           value={f.representanteNombre}
           bold
-          small
           onChange={(v) => onFirmaChange?.("representanteNombre", v)}
         />
         <EditableParagraph
           editable={editable}
           value={f.representanteCargo}
-          small
           onChange={(v) => onFirmaChange?.("representanteCargo", v)}
         />
         <EditableParagraph
           editable={editable}
           value={f.empresa}
-          small
           onChange={(v) => onFirmaChange?.("empresa", v)}
         />
+        {/* La fecha de firma cambia en cada proceso — siempre editable, sin
+            depender del interruptor general "Editar todo". */}
         <EditableParagraph
-          editable={editable}
+          editable
           value={f.ciudadFecha}
-          small
           onChange={(v) => onFirmaChange?.("ciudadFecha", v)}
         />
       </div>
@@ -290,9 +281,11 @@ function DocumentoTecnicoGallery({
 }) {
   return (
     <div>
-      <p className="mb-1.5 text-sm font-semibold">{titulo}</p>
+      <p className="mb-1.5 font-semibold" style={{ fontSize: FS.body }}>
+        {titulo}
+      </p>
       {archivos.length === 0 ? (
-        <p className="text-xs italic" style={{ color: "#888" }}>
+        <p className="italic" style={{ color: "#888", fontSize: FS.tabla }}>
           {vacioMensaje}
         </p>
       ) : (
@@ -336,7 +329,7 @@ function EditableCell({
 }) {
   if (!editable) {
     return (
-      <td className="border px-2 py-2 align-top text-xs whitespace-pre-line" style={{ borderColor: "#000" }}>
+      <td className="border px-2 py-2 align-top whitespace-pre-line" style={{ borderColor: "#000" }}>
         {value.split("\n").map((linea, li) => (
           <div key={li}>{linea}</div>
         ))}
@@ -351,8 +344,8 @@ function EditableCell({
         defaultValue={value}
         onBlur={(e) => onChange(e.target.value)}
         rows={multiline ? 3 : 1}
-        className="w-full resize-none rounded p-1.5 text-xs outline-none"
-        style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999" }}
+        className="w-full resize-none rounded p-1.5 outline-none"
+        style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999", fontSize: FS.tabla }}
       />
     </td>
   );
@@ -373,11 +366,13 @@ function EditableParagraph({
   small?: boolean;
   align?: "left" | "right";
 }) {
+  const fontSize = small ? FS.membrete : FS.body;
+
   if (!editable) {
     return (
       <p
-        className={`whitespace-pre-line ${small ? "text-xs" : "text-sm text-justify"} ${bold ? "font-bold" : ""}`}
-        style={{ textAlign: align }}
+        className={`whitespace-pre-line ${small ? "" : "text-justify"} ${bold ? "font-bold" : ""}`}
+        style={{ textAlign: align, fontSize }}
       >
         {value}
       </p>
@@ -390,8 +385,8 @@ function EditableParagraph({
       defaultValue={value}
       onBlur={(e) => onChange(e.target.value)}
       rows={small ? 1 : 3}
-      className={`w-full resize-none rounded p-2 outline-none ${small ? "text-xs" : "text-sm"} ${bold ? "font-bold" : ""}`}
-      style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999", textAlign: align }}
+      className={`w-full resize-none rounded p-2 outline-none ${bold ? "font-bold" : ""}`}
+      style={{ color: "#000", background: "#f3f4f6", border: "1px solid #999", textAlign: align, fontSize }}
     />
   );
 }

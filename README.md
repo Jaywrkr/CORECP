@@ -51,19 +51,26 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
 7. El botón **"Vista previa Anexo 2"** abre el documento completo replicando
    el formato exacto de la plantilla oficial (`Anexo_2_personal_tecnico.docx`):
    fondo blanco, membrete con el logo de CORESOLUTIONS y datos de contacto,
-   tipografía Calibri, título en azul (#1F4E79) con línea inferior, tabla con
-   encabezado azul marino (#44546A) y texto blanco en negrita, párrafos
-   justificados — título, párrafo introductorio, la tabla de "Cumplimiento de
-   personal técnico mínimo", la sección de "Títulos profesionales y formación
-   académica" (con los documentos Senescyt de cada técnico asignado insertados
-   automáticamente), la sección de "Certificaciones" (ídem, con los documentos
-   de certificaciones) y el bloque de firma (representante, cargo, empresa,
-   ciudad y fecha). El botón **"Editar todo"** dentro de esa vista previa
-   vuelve editable a mano absolutamente todo el texto — celdas de la tabla,
-   párrafos introductorios, membrete y
-   firma — sin depender de lo que detectó la IA o del técnico asignado; los
-   cambios se guardan automáticamente al salir de cada campo, persistidos
-   junto con el resto del análisis en Vercel Blob.
+   tipografía Calibri en los mismos tamaños que el original, título en azul
+   (#1F4E79) con línea inferior, tabla con encabezado azul marino (#44546A) y
+   texto blanco en negrita, párrafos justificados. El documento respeta el
+   mismo orden y paginación que el archivo real — cada sección empieza en una
+   página nueva: (1) portada con título, resumen de la empresa y la tabla de
+   "Cumplimiento de personal técnico mínimo"; (2) "Títulos profesionales y
+   formación académica" (con los documentos Senescyt de cada técnico asignado
+   insertados automáticamente); (3) "Certificaciones de consultores y
+   especialistas técnicos" (ídem); (4) bloque de firma, con espacio en blanco
+   reservado para firmar antes de la línea y el nombre. El botón
+   **"Editar todo"** vuelve editable a mano absolutamente todo el texto —
+   celdas de la tabla, párrafos introductorios, membrete y firma — sin
+   depender de lo que detectó la IA o del técnico asignado; la fecha de firma
+   es siempre editable, incluso fuera de "Editar todo", porque cambia en cada
+   proceso. Los cambios se guardan automáticamente al salir de cada campo,
+   persistidos junto con el resto del análisis en Vercel Blob. Los botones
+   **"Descargar PDF"** (usa el diálogo de impresión del navegador, ya
+   configurado para mostrar solo el documento) y **"Descargar Word"** (genera
+   un `.docx` real con la misma estructura, tabla e imágenes de los técnicos,
+   usando la librería `docx`) permiten obtener el archivo final.
 8. Cada análisis se guarda en Vercel Blob asociado a un **número de proceso**
    (campo editable en la barra superior; se intenta autodetectar del propio
    texto del pliego, ej. buscando "CÓDIGO DEL PROCESO"). Si no hay número
@@ -80,6 +87,28 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
    dejar la página para no perder el trabajo en silencio. Un badge junto al
    número de proceso indica el estado: "Guardando…", "Guardado ✓" o "Error al
    guardar" (con opción de reintentar).
+10. En el botón **Proyectos** del encabezado se administra un roster de
+    proyectos anteriores (cliente, descripción corta, descripción para la
+    tabla del Anexo 3, fecha de acta de entrega, monto), cada uno con su
+    **acta de entrega** y **certificado de participación** adjuntos (con
+    vista previa integrada), guardado en Vercel Blob igual que el roster de
+    técnicos. En cada fila del Anexo 3 se vincula uno o varios proyectos —
+    con checkboxes — que acreditan la experiencia de ese perfil; un mismo
+    proyecto puede vincularse a varios perfiles/técnicos (ej. "ETAPA EP."
+    puede acreditar tanto a un especialista en servidores como a uno de
+    almacenamiento).
+11. El botón **"Vista previa Anexo 3"** replica el formato del Anexo 3 oficial
+    (`Anexo_3_experiencia_personal_tecnico.docx`), con el mismo membrete,
+    tipografía y colores que el Anexo 2: la tabla consolidada (con una fila
+    sombreada por cada requisito de experiencia y una fila por cada proyecto
+    vinculado), un bloque **"CERTIFICADO DE TRABAJO Y EXPERIENCIA"** por cada
+    técnico asignado (con su propia tabla de proyectos, generado a partir de
+    sus datos — cédula, fecha de ingreso, rol — y de los proyectos que se le
+    vincularon), la sección **"Relación de dependencia"**, y
+    **"Documentación de respaldo"** con el listado numerado de los proyectos
+    referenciados y los nombres de sus archivos adjuntos. Igual que en el
+    Anexo 2: "Editar todo" vuelve editable cualquier texto, la fecha de firma
+    siempre es editable, y hay botones "Descargar PDF" y "Descargar Word".
 
 ## Desarrollo local
 
@@ -123,3 +152,26 @@ y `/api/procesos` responden con un error claro en vez de fallar en silencio.
 - `@anthropic-ai/sdk` para la extracción de requisitos vía Claude
 - `@vercel/blob` para persistir el roster de técnicos y el caché de análisis
   por proceso, cada uno como documentos JSON
+- `docx` para generar el archivo Word del Anexo 2 con el mismo formato que la
+  plantilla oficial; "Descargar PDF" usa el diálogo de impresión del
+  navegador sobre esa misma vista previa
+
+## Pruebas end-to-end
+
+```bash
+npm run test:e2e
+```
+
+Corre la suite de Playwright en `e2e/` contra un servidor de desarrollo local
+(arrancado automáticamente). Todas las llamadas a `/api/*` se simulan con
+`page.route` (ver `e2e/mocks.ts`), así que no hace falta `ANTHROPIC_API_KEY`
+ni `BLOB_READ_WRITE_TOKEN` para correrlas. Cubre: el buscador de procesos, el
+análisis manual (sin auto-análisis, caché por número de proceso, guardado al
+salir con "Volver"), el roster de técnicos y de proyectos (alta y documentos
+multi-archivo), el Anexo 2 (tolerancia de "afines" en la coincidencia de
+título, la regresión del override vacío, el orden/paginación de la vista
+previa, la fecha siempre editable y la exportación a Word), y el Anexo 3
+(vinculación de proyectos por perfil, agrupación correcta del certificado por
+técnico, filas sin proyectos vinculados, y la exportación a Word). Se ejecuta
+automáticamente en GitHub Actions (`.github/workflows/e2e.yml`) en cada push
+a `main` y en cada pull request.

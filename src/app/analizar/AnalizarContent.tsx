@@ -7,6 +7,7 @@ import UploadZone from "@/components/UploadZone";
 import DocumentTabs from "@/components/DocumentTabs";
 import RequisitosPanel from "@/components/RequisitosPanel";
 import TecnicosManager from "@/components/TecnicosManager";
+import ProyectosManager from "@/components/ProyectosManager";
 import { extractPdfText } from "@/lib/extractPdfText";
 import { detectProcessCode } from "@/lib/detectProcessCode";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
@@ -14,10 +15,17 @@ import type {
   Anexo2Firma,
   Anexo2Overrides,
   Anexo2OverridesMap,
+  Anexo3Firma,
+  Anexo3FilaOverride,
+  Anexo3OverridesMap,
+  Anexo3ProyectosMap,
+  Anexo3TecnicoOverride,
+  Anexo3TecnicoOverridesMap,
   ExtractionResult,
   ExtractionStatus,
 } from "@/types/extraction";
 import type { Tecnico } from "@/types/tecnico";
+import type { Proyecto } from "@/types/proyecto";
 import type { ProcesoCache } from "@/types/proceso";
 
 const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
@@ -30,6 +38,24 @@ const PdfViewer = dynamic(() => import("@/components/PdfViewer"), {
 });
 
 type SaveState = "idle" | "saving" | "saved" | "error";
+
+interface AnexoExtras {
+  anexo2Overrides: Anexo2OverridesMap;
+  anexo2Firma: Anexo2Firma;
+  anexo3Proyectos: Anexo3ProyectosMap;
+  anexo3Overrides: Anexo3OverridesMap;
+  anexo3TecnicoOverrides: Anexo3TecnicoOverridesMap;
+  anexo3Firma: Anexo3Firma;
+}
+
+const EXTRAS_VACIAS: AnexoExtras = {
+  anexo2Overrides: {},
+  anexo2Firma: {},
+  anexo3Proyectos: {},
+  anexo3Overrides: {},
+  anexo3TecnicoOverrides: {},
+  anexo3Firma: {},
+};
 
 function fileKey(file: File): string {
   return `${file.name}-${file.size}-${file.lastModified}`;
@@ -49,9 +75,16 @@ export default function AnalizarContent() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [showTecnicos, setShowTecnicos] = useState(false);
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [showProyectos, setShowProyectos] = useState(false);
   const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
+
   const [anexo2Overrides, setAnexo2Overrides] = useState<Anexo2OverridesMap>({});
   const [anexo2Firma, setAnexo2Firma] = useState<Anexo2Firma>({});
+  const [anexo3Proyectos, setAnexo3Proyectos] = useState<Anexo3ProyectosMap>({});
+  const [anexo3Overrides, setAnexo3Overrides] = useState<Anexo3OverridesMap>({});
+  const [anexo3TecnicoOverrides, setAnexo3TecnicoOverrides] = useState<Anexo3TecnicoOverridesMap>({});
+  const [anexo3Firma, setAnexo3Firma] = useState<Anexo3Firma>({});
 
   const [numeroProceso, setNumeroProceso] = useState(() => numeroFromUrl ?? "");
   const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
@@ -61,12 +94,17 @@ export default function AnalizarContent() {
   const [loadingProceso, setLoadingProceso] = useState(() => Boolean(numeroFromUrl));
 
   const lastAnalysisRef = useRef<{ cacheKey: string; documentos: string[] } | null>(null);
+  const extrasRef = useRef<AnexoExtras>(EXTRAS_VACIAS);
 
   useEffect(() => {
     fetch("/api/tecnicos")
       .then((res) => res.json())
       .then((data) => setTecnicos(Array.isArray(data?.tecnicos) ? data.tecnicos : []))
       .catch(() => setTecnicos([]));
+    fetch("/api/proyectos")
+      .then((res) => res.json())
+      .then((data) => setProyectos(Array.isArray(data?.proyectos) ? data.proyectos : []))
+      .catch(() => setProyectos([]));
   }, []);
 
   // Load a previously saved proceso when arriving via /analizar?numero=...
@@ -85,13 +123,26 @@ export default function AnalizarContent() {
           cacheKey: data.proceso.numeroProceso,
           documentos: data.proceso.documentos,
         };
+        const extras: AnexoExtras = {
+          anexo2Overrides: data.proceso.anexo2Overrides ?? {},
+          anexo2Firma: data.proceso.anexo2Firma ?? {},
+          anexo3Proyectos: data.proceso.anexo3Proyectos ?? {},
+          anexo3Overrides: data.proceso.anexo3Overrides ?? {},
+          anexo3TecnicoOverrides: data.proceso.anexo3TecnicoOverrides ?? {},
+          anexo3Firma: data.proceso.anexo3Firma ?? {},
+        };
+        extrasRef.current = extras;
         setNumeroProceso(data.proceso.numeroProceso);
         setNombreProyecto(data.proceso.nombreProyecto);
         setResult(data.proceso.result);
         setFromCache(true);
         setCacheUpdatedAt(data.proceso.actualizadoEn);
-        setAnexo2Overrides(data.proceso.anexo2Overrides ?? {});
-        setAnexo2Firma(data.proceso.anexo2Firma ?? {});
+        setAnexo2Overrides(extras.anexo2Overrides);
+        setAnexo2Firma(extras.anexo2Firma);
+        setAnexo3Proyectos(extras.anexo3Proyectos);
+        setAnexo3Overrides(extras.anexo3Overrides);
+        setAnexo3TecnicoOverrides(extras.anexo3TecnicoOverrides);
+        setAnexo3Firma(extras.anexo3Firma);
         setSaveState("saved");
         setStatus("done");
       })
@@ -122,21 +173,15 @@ export default function AnalizarContent() {
       cacheKey: string,
       extractionResult: ExtractionResult,
       documentos: string[],
-      overrides: Anexo2OverridesMap,
-      firma: Anexo2Firma,
+      overrides?: Partial<AnexoExtras>,
     ) => {
+      const extras = { ...extrasRef.current, ...overrides };
       setSaveState("saving");
       try {
         const res = await fetch("/api/procesos", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            numeroProceso: cacheKey,
-            result: extractionResult,
-            documentos,
-            anexo2Overrides: overrides,
-            anexo2Firma: firma,
-          }),
+          body: JSON.stringify({ numeroProceso: cacheKey, result: extractionResult, documentos, ...extras }),
         });
         const data: { proceso?: ProcesoCache; error?: string } = await res.json();
         if (!res.ok || !data.proceso) throw new Error(data.error || "No se pudo guardar el análisis.");
@@ -158,8 +203,13 @@ export default function AnalizarContent() {
     setError(null);
     setProgressLabel(null);
     setAsignaciones({});
+    extrasRef.current = EXTRAS_VACIAS;
     setAnexo2Overrides({});
     setAnexo2Firma({});
+    setAnexo3Proyectos({});
+    setAnexo3Overrides({});
+    setAnexo3TecnicoOverrides({});
+    setAnexo3Firma({});
     setFromCache(false);
     setCacheUpdatedAt(null);
     setNombreProyecto(null);
@@ -175,8 +225,13 @@ export default function AnalizarContent() {
       setError(null);
       setResult(null);
       setAsignaciones({});
+      extrasRef.current = EXTRAS_VACIAS;
       setAnexo2Overrides({});
       setAnexo2Firma({});
+      setAnexo3Proyectos({});
+      setAnexo3Overrides({});
+      setAnexo3TecnicoOverrides({});
+      setAnexo3Firma({});
       setFromCache(false);
       setCacheUpdatedAt(null);
       setNombreProyecto(null);
@@ -230,12 +285,25 @@ export default function AnalizarContent() {
             const cacheRes = await fetch(`/api/procesos?numero=${encodeURIComponent(numero)}`);
             const cacheData: { proceso?: ProcesoCache } | null = await cacheRes.json().catch(() => null);
             if (cacheRes.ok && cacheData?.proceso) {
+              const extras: AnexoExtras = {
+                anexo2Overrides: cacheData.proceso.anexo2Overrides ?? {},
+                anexo2Firma: cacheData.proceso.anexo2Firma ?? {},
+                anexo3Proyectos: cacheData.proceso.anexo3Proyectos ?? {},
+                anexo3Overrides: cacheData.proceso.anexo3Overrides ?? {},
+                anexo3TecnicoOverrides: cacheData.proceso.anexo3TecnicoOverrides ?? {},
+                anexo3Firma: cacheData.proceso.anexo3Firma ?? {},
+              };
+              extrasRef.current = extras;
               setResult(cacheData.proceso.result);
               setFromCache(true);
               setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
               setNombreProyecto(cacheData.proceso.nombreProyecto);
-              setAnexo2Overrides(cacheData.proceso.anexo2Overrides ?? {});
-              setAnexo2Firma(cacheData.proceso.anexo2Firma ?? {});
+              setAnexo2Overrides(extras.anexo2Overrides);
+              setAnexo2Firma(extras.anexo2Firma);
+              setAnexo3Proyectos(extras.anexo3Proyectos);
+              setAnexo3Overrides(extras.anexo3Overrides);
+              setAnexo3TecnicoOverrides(extras.anexo3TecnicoOverrides);
+              setAnexo3Firma(extras.anexo3Firma);
               setSaveState("saved");
               lastAnalysisRef.current = {
                 cacheKey: cacheData.proceso.numeroProceso,
@@ -291,7 +359,7 @@ export default function AnalizarContent() {
         const cacheKey = numero || autoNombre;
         if (!numero) setNumeroProceso(cacheKey);
 
-        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename), {}, {});
+        void guardarResultado(cacheKey, extractionResult, extracted.map((d) => d.filename));
       } catch (err) {
         setError(err instanceof Error ? err.message : "Error desconocido al procesar los documentos.");
         setStatus("error");
@@ -344,27 +412,23 @@ export default function AnalizarContent() {
 
   const handleRetrySave = useCallback(() => {
     if (result && lastAnalysisRef.current) {
-      void guardarResultado(
-        lastAnalysisRef.current.cacheKey,
-        result,
-        lastAnalysisRef.current.documentos,
-        anexo2Overrides,
-        anexo2Firma,
-      );
+      void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos);
     }
-  }, [result, guardarResultado, anexo2Overrides, anexo2Firma]);
+  }, [result, guardarResultado]);
 
   const handleAnexo2OverrideChange = useCallback(
     (rowIndex: number, field: keyof Anexo2Overrides, value: string) => {
       setAnexo2Overrides((prev) => {
         const next = { ...prev, [rowIndex]: { ...prev[rowIndex], [field]: value } };
         if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, next, anexo2Firma);
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo2Overrides: next,
+          });
         }
         return next;
       });
     },
-    [result, guardarResultado, anexo2Firma],
+    [result, guardarResultado],
   );
 
   const handleAnexo2FirmaChange = useCallback(
@@ -372,18 +436,75 @@ export default function AnalizarContent() {
       setAnexo2Firma((prev) => {
         const next = { ...prev, [field]: value };
         if (result && lastAnalysisRef.current) {
-          void guardarResultado(
-            lastAnalysisRef.current.cacheKey,
-            result,
-            lastAnalysisRef.current.documentos,
-            anexo2Overrides,
-            next,
-          );
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo2Firma: next,
+          });
         }
         return next;
       });
     },
-    [result, guardarResultado, anexo2Overrides],
+    [result, guardarResultado],
+  );
+
+  const handleAnexo3ProyectosChange = useCallback(
+    (rowIndex: number, proyectoIds: string[]) => {
+      setAnexo3Proyectos((prev) => {
+        const next = { ...prev, [rowIndex]: proyectoIds };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo3Proyectos: next,
+          });
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado],
+  );
+
+  const handleAnexo3OverrideChange = useCallback(
+    (rowIndex: number, proyectoId: string, field: keyof Anexo3FilaOverride, value: string) => {
+      setAnexo3Overrides((prev) => {
+        const key = `${rowIndex}:${proyectoId}`;
+        const next = { ...prev, [key]: { ...prev[key], [field]: value } };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo3Overrides: next,
+          });
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado],
+  );
+
+  const handleAnexo3TecnicoOverrideChange = useCallback(
+    (tecnicoId: string, field: keyof Anexo3TecnicoOverride, value: string) => {
+      setAnexo3TecnicoOverrides((prev) => {
+        const next = { ...prev, [tecnicoId]: { ...prev[tecnicoId], [field]: value } };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo3TecnicoOverrides: next,
+          });
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado],
+  );
+
+  const handleAnexo3FirmaChange = useCallback(
+    (field: keyof Anexo3Firma, value: string) => {
+      setAnexo3Firma((prev) => {
+        const next = { ...prev, [field]: value };
+        if (result && lastAnalysisRef.current) {
+          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
+            anexo3Firma: next,
+          });
+        }
+        return next;
+      });
+    },
+    [result, guardarResultado],
   );
 
   const isBusy = status === "uploading" || status === "extracting";
@@ -395,13 +516,7 @@ export default function AnalizarContent() {
       return;
     }
     if (lastAnalysisRef.current) {
-      const ok = await guardarResultado(
-        lastAnalysisRef.current.cacheKey,
-        result,
-        lastAnalysisRef.current.documentos,
-        anexo2Overrides,
-        anexo2Firma,
-      );
+      const ok = await guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos);
       if (ok) {
         router.push("/");
         return;
@@ -411,7 +526,7 @@ export default function AnalizarContent() {
       "No se pudo guardar este análisis en la base de datos todavía. Si sales ahora, se perderá. ¿Salir de todas formas?",
     );
     if (leaveAnyway) router.push("/");
-  }, [isBusy, result, saveState, guardarResultado, router, anexo2Overrides, anexo2Firma]);
+  }, [isBusy, result, saveState, guardarResultado, router]);
 
   const activeFile = documents[activeIndex] ?? null;
   const hasContent = documents.length > 0 || result !== null;
@@ -442,6 +557,13 @@ export default function AnalizarContent() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowProyectos(true)}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          >
+            Proyectos
+          </button>
+          <button
             onClick={() => setShowTecnicos(true)}
             className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
             style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
@@ -468,6 +590,14 @@ export default function AnalizarContent() {
           onClose={() => setShowTecnicos(false)}
           tecnicos={tecnicos}
           onTecnicosChange={setTecnicos}
+        />
+      )}
+
+      {showProyectos && (
+        <ProyectosManager
+          onClose={() => setShowProyectos(false)}
+          proyectos={proyectos}
+          onProyectosChange={setProyectos}
         />
       )}
 
@@ -598,12 +728,21 @@ export default function AnalizarContent() {
             documentCount={documents.length}
             progressLabel={progressLabel}
             tecnicos={tecnicos}
+            proyectos={proyectos}
             asignaciones={asignaciones}
             onAssignTecnico={handleAssignTecnico}
             anexo2Overrides={anexo2Overrides}
             onAnexo2OverrideChange={handleAnexo2OverrideChange}
             anexo2Firma={anexo2Firma}
             onAnexo2FirmaChange={handleAnexo2FirmaChange}
+            anexo3Proyectos={anexo3Proyectos}
+            onAnexo3ProyectosChange={handleAnexo3ProyectosChange}
+            anexo3Overrides={anexo3Overrides}
+            onAnexo3OverrideChange={handleAnexo3OverrideChange}
+            anexo3TecnicoOverrides={anexo3TecnicoOverrides}
+            onAnexo3TecnicoOverrideChange={handleAnexo3TecnicoOverrideChange}
+            anexo3Firma={anexo3Firma}
+            onAnexo3FirmaChange={handleAnexo3FirmaChange}
           />
         </section>
       </main>

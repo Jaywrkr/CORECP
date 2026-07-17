@@ -70,3 +70,36 @@ export interface Anexo2Firma {
   empresa?: string;
   ciudadFecha?: string;
 }
+
+// Qué proyectos (del roster de Proyectos) demuestran la experiencia de cada
+// fila del Anexo 2/3 — un mismo perfil puede acreditarse con varios
+// proyectos, cada uno como una fila propia en la tabla del Anexo 3.
+export type Anexo3ProyectosMap = Record<number, string[]>;
+
+// Override manual de una fila (perfil + proyecto puntual) de la tabla del
+// Anexo 3, clave `${rowIndex}:${proyectoId}`.
+export interface Anexo3FilaOverride {
+  personal?: string;
+  clienteFecha?: string;
+  proyecto?: string;
+  monto?: string;
+}
+export type Anexo3OverridesMap = Record<string, Anexo3FilaOverride>;
+
+// Texto editable del bloque "CERTIFICADO DE TRABAJO Y EXPERIENCIA" propio de
+// cada técnico, clave = id del técnico.
+export interface Anexo3TecnicoOverride {
+  bio?: string;
+  participacion?: string;
+}
+export type Anexo3TecnicoOverridesMap = Record<string, Anexo3TecnicoOverride>;
+
+export interface Anexo3Firma {
+  introGeneral?: string;
+  relacionDependenciaTexto?: string;
+  documentacionRespaldoTexto?: string;
+  representanteNombre?: string;
+  representanteCargo?: string;
+  empresa?: string;
+  ciudadFecha?: string;
+}

@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import TecnicosManager from "@/components/TecnicosManager";
+import ProyectosManager from "@/components/ProyectosManager";
 import type { Tecnico } from "@/types/tecnico";
+import type { Proyecto } from "@/types/proyecto";
 import type { ProcesoResumen } from "@/types/proceso";
 
 export default function Home() {
@@ -14,6 +16,8 @@ export default function Home() {
 
   const [tecnicos, setTecnicos] = useState<Tecnico[]>([]);
   const [showTecnicos, setShowTecnicos] = useState(false);
+  const [proyectos, setProyectos] = useState<Proyecto[]>([]);
+  const [showProyectos, setShowProyectos] = useState(false);
 
   useEffect(() => {
     fetch("/api/procesos")
@@ -28,6 +32,13 @@ export default function Home() {
       .then((res) => res.json())
       .then((data) => setTecnicos(Array.isArray(data?.tecnicos) ? data.tecnicos : []))
       .catch(() => setTecnicos([]));
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/proyectos")
+      .then((res) => res.json())
+      .then((data) => setProyectos(Array.isArray(data?.proyectos) ? data.proyectos : []))
+      .catch(() => setProyectos([]));
   }, []);
 
   const filtered = useMemo(() => {
@@ -83,6 +94,13 @@ export default function Home() {
         </div>
         <div className="flex items-center gap-2">
           <button
+            onClick={() => setShowProyectos(true)}
+            className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+            style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+          >
+            Proyectos
+          </button>
+          <button
             onClick={() => setShowTecnicos(true)}
             className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
             style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
@@ -104,6 +122,14 @@ export default function Home() {
           onClose={() => setShowTecnicos(false)}
           tecnicos={tecnicos}
           onTecnicosChange={setTecnicos}
+        />
+      )}
+
+      {showProyectos && (
+        <ProyectosManager
+          onClose={() => setShowProyectos(false)}
+          proyectos={proyectos}
+          onProyectosChange={setProyectos}
         />
       )}
 
