@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import VersionBadge from "@/components/VersionBadge";
 import "./globals.css";
 
 const ibmSans = IBM_Plex_Sans({
@@ -30,7 +31,10 @@ export default function RootLayout({
       lang="es"
       className={`${ibmSans.variable} ${ibmMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {children}
+        <VersionBadge />
+      </body>
     </html>
   );
 }
