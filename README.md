@@ -87,6 +87,28 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
    dejar la página para no perder el trabajo en silencio. Un badge junto al
    número de proceso indica el estado: "Guardando…", "Guardado ✓" o "Error al
    guardar" (con opción de reintentar).
+10. En el botón **Proyectos** del encabezado se administra un roster de
+    proyectos anteriores (cliente, descripción corta, descripción para la
+    tabla del Anexo 3, fecha de acta de entrega, monto), cada uno con su
+    **acta de entrega** y **certificado de participación** adjuntos (con
+    vista previa integrada), guardado en Vercel Blob igual que el roster de
+    técnicos. En cada fila del Anexo 3 se vincula uno o varios proyectos —
+    con checkboxes — que acreditan la experiencia de ese perfil; un mismo
+    proyecto puede vincularse a varios perfiles/técnicos (ej. "ETAPA EP."
+    puede acreditar tanto a un especialista en servidores como a uno de
+    almacenamiento).
+11. El botón **"Vista previa Anexo 3"** replica el formato del Anexo 3 oficial
+    (`Anexo_3_experiencia_personal_tecnico.docx`), con el mismo membrete,
+    tipografía y colores que el Anexo 2: la tabla consolidada (con una fila
+    sombreada por cada requisito de experiencia y una fila por cada proyecto
+    vinculado), un bloque **"CERTIFICADO DE TRABAJO Y EXPERIENCIA"** por cada
+    técnico asignado (con su propia tabla de proyectos, generado a partir de
+    sus datos — cédula, fecha de ingreso, rol — y de los proyectos que se le
+    vincularon), la sección **"Relación de dependencia"**, y
+    **"Documentación de respaldo"** con el listado numerado de los proyectos
+    referenciados y los nombres de sus archivos adjuntos. Igual que en el
+    Anexo 2: "Editar todo" vuelve editable cualquier texto, la fecha de firma
+    siempre es editable, y hay botones "Descargar PDF" y "Descargar Word".
 
 ## Desarrollo local
 
@@ -145,9 +167,11 @@ Corre la suite de Playwright en `e2e/` contra un servidor de desarrollo local
 `page.route` (ver `e2e/mocks.ts`), así que no hace falta `ANTHROPIC_API_KEY`
 ni `BLOB_READ_WRITE_TOKEN` para correrlas. Cubre: el buscador de procesos, el
 análisis manual (sin auto-análisis, caché por número de proceso, guardado al
-salir con "Volver"), el roster de técnicos (alta y documentos multi-archivo),
-y el Anexo 2 (tolerancia de "afines" en la coincidencia de título, la
-regresión del override vacío, el orden/paginación de la vista previa, la
-fecha siempre editable y la exportación a Word). Se ejecuta automáticamente
-en GitHub Actions (`.github/workflows/e2e.yml`) en cada push a `main` y en
-cada pull request.
+salir con "Volver"), el roster de técnicos y de proyectos (alta y documentos
+multi-archivo), el Anexo 2 (tolerancia de "afines" en la coincidencia de
+título, la regresión del override vacío, el orden/paginación de la vista
+previa, la fecha siempre editable y la exportación a Word), y el Anexo 3
+(vinculación de proyectos por perfil, agrupación correcta del certificado por
+técnico, filas sin proyectos vinculados, y la exportación a Word). Se ejecuta
+automáticamente en GitHub Actions (`.github/workflows/e2e.yml`) en cada push
+a `main` y en cada pull request.

@@ -1,6 +1,7 @@
 import type { Page } from "@playwright/test";
 import type { ExtractionResult } from "../src/types/extraction";
 import type { Tecnico } from "../src/types/tecnico";
+import type { Proyecto } from "../src/types/proyecto";
 import type { ProcesoCache } from "../src/types/proceso";
 
 export const mockExtractionResult: ExtractionResult = {
@@ -43,6 +44,16 @@ export const mockExtractionResultDosPerfiles: ExtractionResult = {
       titulacionAcademica: "Ingeniería Civil",
     },
   ],
+  anexo3Sugerido: [
+    {
+      personal: "Especialista en Estructuras",
+      requisitoExperiencia: "Experiencia mínima de 3 años en al menos 2 proyectos similares como especialista en estructuras.",
+    },
+    {
+      personal: "Especialista en Suelos",
+      requisitoExperiencia: "Experiencia mínima de 3 años en al menos 2 proyectos similares como especialista en suelos.",
+    },
+  ],
 };
 
 export function fixtureTecnico(overrides: Partial<Tecnico> = {}): Tecnico {
@@ -54,6 +65,18 @@ export function fixtureTecnico(overrides: Partial<Tecnico> = {}): Tecnico {
     tituloAcademico: "Ingeniero Civil",
     nivelEstudio: "Tercer Nivel",
     certificaciones: ["PMP"],
+    ...overrides,
+  };
+}
+
+export function fixtureProyecto(overrides: Partial<Proyecto> = {}): Proyecto {
+  return {
+    id: "p1",
+    cliente: "EMOV EP.",
+    descripcionCorta: "Adquisición y puesta en marcha de servidor de producción.",
+    descripcionProyecto: "ADQUISICIÓN Y PUESTA EN MARCHA DE SERVIDOR DE PRODUCCIÓN PARA SERVIDORES DE LA EMOV EP.",
+    fechaActaEntrega: "2025-05-09",
+    monto: "$115.075",
     ...overrides,
   };
 }
@@ -125,6 +148,57 @@ export function mockTecnicosApi(page: Page, initial: Tecnico[] = []) {
   };
 }
 
+export function mockProyectosApi(page: Page, initial: Proyecto[] = []) {
+  let current = [...initial];
+
+  page.route("**/api/proyectos", async (route) => {
+    const req = route.request();
+    if (req.method() === "GET") return route.fulfill({ json: { proyectos: current } });
+    if (req.method() === "POST") {
+      const body = JSON.parse(req.postData() || "{}") as Partial<Proyecto>;
+      const nuevo: Proyecto = { ...(body as Proyecto), id: `p${current.length + 1}` };
+      current = [...current, nuevo];
+      return route.fulfill({ json: { proyectos: current }, status: 201 });
+    }
+    if (req.method() === "PUT") {
+      const body = JSON.parse(req.postData() || "{}") as Proyecto;
+      current = current.map((p) => (p.id === body.id ? { ...p, ...body } : p));
+      return route.fulfill({ json: { proyectos: current } });
+    }
+    if (req.method() === "DELETE") {
+      const id = new URL(req.url()).searchParams.get("id");
+      current = current.filter((p) => p.id !== id);
+      return route.fulfill({ json: { proyectos: current } });
+    }
+    return route.continue();
+  });
+
+  page.route("**/api/proyectos/documento**", async (route) => {
+    const req = route.request();
+    if (req.method() === "POST") {
+      const targetId = current[0]?.id;
+      if (targetId) {
+        current = current.map((p) =>
+          p.id === targetId
+            ? { ...p, archivoActaEntrega: { url: TEST_IMAGE_DATA_URL, nombre: "acta.png" } }
+            : p,
+        );
+      }
+      return route.fulfill({ json: { proyectos: current } });
+    }
+    if (req.method() === "DELETE") {
+      const id = new URL(req.url()).searchParams.get("id");
+      current = current.map((p) => (p.id === id ? { ...p, archivoActaEntrega: undefined } : p));
+      return route.fulfill({ json: { proyectos: current } });
+    }
+    return route.continue();
+  });
+
+  return {
+    get: () => current,
+  };
+}
+
 export function mockProcesosApi(page: Page) {
   const store = new Map<string, ProcesoCache>();
 
@@ -148,6 +222,10 @@ export function mockProcesosApi(page: Page) {
         documentos: body.documentos ?? [],
         anexo2Overrides: body.anexo2Overrides,
         anexo2Firma: body.anexo2Firma,
+        anexo3Proyectos: body.anexo3Proyectos,
+        anexo3Overrides: body.anexo3Overrides,
+        anexo3TecnicoOverrides: body.anexo3TecnicoOverrides,
+        anexo3Firma: body.anexo3Firma,
         actualizadoEn: new Date().toISOString(),
       };
       store.set(proceso.numeroProceso, proceso);

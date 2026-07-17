@@ -5,13 +5,22 @@ import type {
   Anexo2Firma,
   Anexo2Overrides,
   Anexo2OverridesMap,
+  Anexo3Firma,
+  Anexo3FilaOverride,
+  Anexo3OverridesMap,
+  Anexo3ProyectosMap,
+  Anexo3TecnicoOverride,
+  Anexo3TecnicoOverridesMap,
   ExtractionResult,
   ExtractionStatus,
 } from "@/types/extraction";
+import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
+import Anexo3Preview from "./Anexo3Preview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
 import { descargarBlob, generarAnexo2Docx } from "@/lib/exportarAnexo2Docx";
+import { generarAnexo3Docx } from "@/lib/exportarAnexo3Docx";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -21,12 +30,21 @@ interface RequisitosPanelProps {
   documentCount?: number;
   progressLabel?: string | null;
   tecnicos?: Tecnico[];
+  proyectos?: Proyecto[];
   asignaciones?: Record<number, string>;
   onAssignTecnico?: (rowIndex: number, tecnicoId: string) => void;
   anexo2Overrides?: Anexo2OverridesMap;
   onAnexo2OverrideChange?: (rowIndex: number, field: keyof Anexo2Overrides, value: string) => void;
   anexo2Firma?: Anexo2Firma;
   onAnexo2FirmaChange?: (field: keyof Anexo2Firma, value: string) => void;
+  anexo3Proyectos?: Anexo3ProyectosMap;
+  onAnexo3ProyectosChange?: (rowIndex: number, proyectoIds: string[]) => void;
+  anexo3Overrides?: Anexo3OverridesMap;
+  onAnexo3OverrideChange?: (rowIndex: number, proyectoId: string, field: keyof Anexo3FilaOverride, value: string) => void;
+  anexo3TecnicoOverrides?: Anexo3TecnicoOverridesMap;
+  onAnexo3TecnicoOverrideChange?: (tecnicoId: string, field: keyof Anexo3TecnicoOverride, value: string) => void;
+  anexo3Firma?: Anexo3Firma;
+  onAnexo3FirmaChange?: (field: keyof Anexo3Firma, value: string) => void;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -65,17 +83,31 @@ export default function RequisitosPanel({
   documentCount = 0,
   progressLabel,
   tecnicos = [],
+  proyectos = [],
   asignaciones = {},
   onAssignTecnico,
   anexo2Overrides = {},
   onAnexo2OverrideChange,
   anexo2Firma = {},
   onAnexo2FirmaChange,
+  anexo3Proyectos = {},
+  onAnexo3ProyectosChange,
+  anexo3Overrides = {},
+  onAnexo3OverrideChange,
+  anexo3TecnicoOverrides = {},
+  onAnexo3TecnicoOverrideChange,
+  anexo3Firma = {},
+  onAnexo3FirmaChange,
 }: RequisitosPanelProps) {
   const [showPreview, setShowPreview] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [exportingWord, setExportingWord] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+
+  const [showPreviewAnexo3, setShowPreviewAnexo3] = useState(false);
+  const [editModeAnexo3, setEditModeAnexo3] = useState(false);
+  const [exportingWordAnexo3, setExportingWordAnexo3] = useState(false);
+  const [exportErrorAnexo3, setExportErrorAnexo3] = useState<string | null>(null);
 
   const handleDescargarPdf = () => window.print();
 
@@ -96,6 +128,30 @@ export default function RequisitosPanel({
       setExportError(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
     } finally {
       setExportingWord(false);
+    }
+  };
+
+  const handleDescargarWordAnexo3 = async () => {
+    if (!result) return;
+    setExportingWordAnexo3(true);
+    setExportErrorAnexo3(null);
+    try {
+      const blob = await generarAnexo3Docx({
+        anexo2Filas: result.anexo2Sugerido,
+        anexo3Filas: result.anexo3Sugerido,
+        tecnicos,
+        proyectos,
+        asignaciones,
+        proyectosPorFila: anexo3Proyectos,
+        overrides: anexo3Overrides,
+        tecnicoOverrides: anexo3TecnicoOverrides,
+        firma: anexo3Firma,
+      });
+      descargarBlob(blob, "Anexo_3_Experiencia_Personal_Tecnico.docx");
+    } catch (err) {
+      setExportErrorAnexo3(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
+    } finally {
+      setExportingWordAnexo3(false);
     }
   };
 
@@ -423,16 +479,27 @@ export default function RequisitosPanel({
 
       {/* Bloque C: Anexo 3 */}
       <section>
-        <div className="mb-4 flex items-center gap-2">
-          <span
-            className="flex h-5 w-5 items-center justify-center rounded text-[11px] font-semibold"
-            style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
-          >
-            3
-          </span>
-          <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Campos sugeridos — Anexo 3: Experiencia del Personal Técnico
-          </h1>
+        <div className="mb-4 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-5 w-5 items-center justify-center rounded text-[11px] font-semibold"
+              style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
+            >
+              3
+            </span>
+            <h1 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+              Campos sugeridos — Anexo 3: Experiencia del Personal Técnico
+            </h1>
+          </div>
+          {anexo3Sugerido.length > 0 && (
+            <button
+              onClick={() => setShowPreviewAnexo3(true)}
+              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+            >
+              Vista previa Anexo 3
+            </button>
+          )}
         </div>
 
         {anexo3Sugerido.length === 0 ? (
@@ -441,57 +508,161 @@ export default function RequisitosPanel({
           <div className="flex flex-col gap-3">
             {anexo3Sugerido.map((row, i) => {
               const tecnicoAsignado = tecnicos.find((t) => t.id === asignaciones[i]);
+              const proyectoIds = anexo3Proyectos[i] ?? [];
+
               return (
-              <div
-                key={i}
-                className="rounded-md border p-3.5"
-                style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
-              >
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
-                    {row.personal || `Perfil ${i + 1}`}
-                  </span>
-                  {tecnicoAsignado && (
-                    <span
-                      className="rounded px-2 py-0.5 text-[11px] font-medium"
-                      style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
-                    >
-                      {tecnicoAsignado.nombre}
+                <div
+                  key={i}
+                  data-testid={`anexo3-row-${i}`}
+                  className="rounded-md border p-3.5"
+                  style={{ borderColor: "var(--border-subtle)", background: "var(--bg-elevated)" }}
+                >
+                  <div className="mb-2 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium" style={{ color: "var(--text-primary)" }}>
+                      {row.personal || `Perfil ${i + 1}`}
                     </span>
-                  )}
-                </div>
-                <dl className="grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-3">
-                  <div className="sm:col-span-3">
+                    {tecnicoAsignado && (
+                      <span
+                        className="rounded px-2 py-0.5 text-[11px] font-medium"
+                        style={{ background: "var(--accent-soft)", color: "var(--accent-hover)" }}
+                      >
+                        {tecnicoAsignado.nombre}
+                      </span>
+                    )}
+                  </div>
+                  <dl className="mb-3 text-xs">
                     <dt className="mb-0.5" style={{ color: "var(--text-tertiary)" }}>
                       Requisito de experiencia
                     </dt>
                     <dd style={{ color: "var(--text-primary)" }}>{row.requisitoExperiencia || "—"}</dd>
+                  </dl>
+
+                  <div className="text-xs" style={{ color: "var(--text-tertiary)" }}>
+                    Proyectos que acreditan esta experiencia
                   </div>
-                  <div>
-                    <dt style={{ color: "var(--text-tertiary)" }}>Cliente - Fecha de Acta/Factura</dt>
-                    <dd className="italic" style={{ color: "var(--text-tertiary)" }}>
-                      (por completar)
-                    </dd>
-                  </div>
-                  <div>
-                    <dt style={{ color: "var(--text-tertiary)" }}>Proyecto</dt>
-                    <dd className="italic" style={{ color: "var(--text-tertiary)" }}>
-                      (por completar)
-                    </dd>
-                  </div>
-                  <div>
-                    <dt style={{ color: "var(--text-tertiary)" }}>Monto</dt>
-                    <dd className="italic" style={{ color: "var(--text-tertiary)" }}>
-                      (por completar)
-                    </dd>
-                  </div>
-                </dl>
-              </div>
+                  {proyectos.length === 0 ? (
+                    <p className="mt-1 text-xs italic" style={{ color: "var(--text-tertiary)" }}>
+                      Aún no hay proyectos en el roster — agrégalos con el botón &quot;Proyectos&quot;.
+                    </p>
+                  ) : (
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {proyectos.map((p) => {
+                        const checked = proyectoIds.includes(p.id);
+                        return (
+                          <label
+                            key={p.id}
+                            className="flex cursor-pointer items-center gap-1.5 rounded border px-2 py-1 text-xs"
+                            style={{
+                              borderColor: checked ? "var(--accent)" : "var(--border-subtle)",
+                              background: checked ? "var(--accent-soft)" : "transparent",
+                              color: checked ? "var(--accent-hover)" : "var(--text-secondary)",
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              className="hidden"
+                              checked={checked}
+                              onChange={() => {
+                                const next = checked
+                                  ? proyectoIds.filter((id) => id !== p.id)
+                                  : [...proyectoIds, p.id];
+                                onAnexo3ProyectosChange?.(i, next);
+                              }}
+                            />
+                            {p.cliente}
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               );
             })}
           </div>
         )}
       </section>
+
+      {showPreviewAnexo3 && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setShowPreviewAnexo3(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Vista previa — Anexo 3
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDescargarPdf}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Descargar PDF
+                </button>
+                <button
+                  onClick={handleDescargarWordAnexo3}
+                  disabled={exportingWordAnexo3}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {exportingWordAnexo3 ? "Generando…" : "Descargar Word"}
+                </button>
+                <button
+                  onClick={() => setEditModeAnexo3((v) => !v)}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{
+                    borderColor: editModeAnexo3 ? "var(--accent)" : "var(--border)",
+                    color: editModeAnexo3 ? "var(--accent-hover)" : "var(--text-secondary)",
+                  }}
+                >
+                  {editModeAnexo3 ? "Terminar edición" : "Editar todo"}
+                </button>
+                <button
+                  onClick={() => setShowPreviewAnexo3(false)}
+                  aria-label="Cerrar"
+                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="min-h-0 flex-1 overflow-auto p-4">
+              {exportErrorAnexo3 && (
+                <p className="mb-3 text-xs" style={{ color: "var(--danger)" }}>
+                  {exportErrorAnexo3}
+                </p>
+              )}
+              <Anexo3Preview
+                anexo2Filas={anexo2Sugerido}
+                anexo3Filas={anexo3Sugerido}
+                tecnicos={tecnicos}
+                proyectos={proyectos}
+                asignaciones={asignaciones}
+                proyectosPorFila={anexo3Proyectos}
+                overrides={anexo3Overrides}
+                tecnicoOverrides={anexo3TecnicoOverrides}
+                firma={anexo3Firma}
+                editable={editModeAnexo3}
+                onOverrideChange={onAnexo3OverrideChange}
+                onTecnicoOverrideChange={onAnexo3TecnicoOverrideChange}
+                onFirmaChange={onAnexo3FirmaChange}
+              />
+              {editModeAnexo3 && (
+                <p className="mt-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
+                  Los cambios se guardan automáticamente al salir de cada campo.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

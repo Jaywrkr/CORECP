@@ -1,7 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { deleteProceso, listProcesos, readProceso, writeProceso } from "@/lib/procesosStore";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
-import type { Anexo2Firma, Anexo2OverridesMap, ExtractionResult } from "@/types/extraction";
+import type {
+  Anexo2Firma,
+  Anexo2OverridesMap,
+  Anexo3Firma,
+  Anexo3OverridesMap,
+  Anexo3ProyectosMap,
+  Anexo3TecnicoOverridesMap,
+  ExtractionResult,
+} from "@/types/extraction";
 
 export const runtime = "nodejs";
 
@@ -52,6 +60,22 @@ export async function POST(req: NextRequest) {
       typeof b.anexo2Firma === "object" && b.anexo2Firma !== null
         ? (b.anexo2Firma as Anexo2Firma)
         : undefined;
+    const anexo3Proyectos =
+      typeof b.anexo3Proyectos === "object" && b.anexo3Proyectos !== null
+        ? (b.anexo3Proyectos as Anexo3ProyectosMap)
+        : undefined;
+    const anexo3Overrides =
+      typeof b.anexo3Overrides === "object" && b.anexo3Overrides !== null
+        ? (b.anexo3Overrides as Anexo3OverridesMap)
+        : undefined;
+    const anexo3TecnicoOverrides =
+      typeof b.anexo3TecnicoOverrides === "object" && b.anexo3TecnicoOverrides !== null
+        ? (b.anexo3TecnicoOverrides as Anexo3TecnicoOverridesMap)
+        : undefined;
+    const anexo3Firma =
+      typeof b.anexo3Firma === "object" && b.anexo3Firma !== null
+        ? (b.anexo3Firma as Anexo3Firma)
+        : undefined;
 
     if (!numeroProceso || !result || typeof result !== "object") {
       return NextResponse.json(
@@ -72,6 +96,10 @@ export async function POST(req: NextRequest) {
       documentos,
       anexo2Overrides,
       anexo2Firma,
+      anexo3Proyectos,
+      anexo3Overrides,
+      anexo3TecnicoOverrides,
+      anexo3Firma,
       actualizadoEn: new Date().toISOString(),
     };
 
