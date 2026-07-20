@@ -358,17 +358,24 @@ async function callClaude(
   documentBlocks: string[],
   maxTokens: number,
 ): Promise<unknown> {
-  const response = await client.messages.create({
-    model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
-    max_tokens: maxTokens,
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user",
-        content: `${instruction}\n\n${documentBlocks.join("\n\n")}`,
-      },
-    ],
-  });
+  const response = await client.messages.create(
+    {
+      model: process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001",
+      max_tokens: maxTokens,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user",
+          content: `${instruction}\n\n${documentBlocks.join("\n\n")}`,
+        },
+      ],
+    },
+    // Vercel mata la función entera a los 60s sin darnos chance de responder
+    // nada — con esto la propia llamada falla unos segundos antes (dejando
+    // margen para el resto del handler) y cae en el manejo de errores normal
+    // en vez de terminar en un 504 crudo sin ningún mensaje útil.
+    { timeout: 48_000 },
+  );
 
   if (response.stop_reason === "refusal") {
     throw new Error("El modelo rechazó procesar estos documentos.");
@@ -471,9 +478,15 @@ export async function POST(req: NextRequest) {
 
     const client = new Anthropic({ apiKey });
 
-    // Claude Sonnet 5 has a 1M-token context window, so a generous per-request
-    // character budget shared across all documents is safe.
-    const MAX_TOTAL_CHARS = 700_000;
+    // El modelo real usado aquí es Haiku (rápido por token, pero el tiempo
+    // de procesamiento sigue siendo proporcional a la cantidad de texto de
+    // entrada). Un presupuesto de 700.000 caracteres —dimensionado para un
+    // contexto de 1M de tokens que este modelo no usa— hacía que pliegos
+    // grandes (pliego + aclaraciones + actas) tardaran más de los 60s que
+    // permite la función serverless de Vercel, así sea con las dos llamadas
+    // corriendo en paralelo. Se recorta a un presupuesto que en la práctica
+    // termina bien dentro del límite.
+    const MAX_TOTAL_CHARS = 220_000;
     let remaining = MAX_TOTAL_CHARS;
     let anyTruncated = false;
     const documentBlocks = validDocuments.map((doc) => {
