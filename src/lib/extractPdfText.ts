@@ -26,7 +26,11 @@ export async function extractPdfText(file: File): Promise<string> {
       .filter((item): item is TextItem => "str" in item)
       .map((item) => item.str)
       .join(" ");
-    pageTexts.push(pageText);
+    // Marca cada página con un encabezado legible por el modelo — sin esto
+    // no hay forma de que la IA cite "página N" en sus referencias, porque
+    // el texto llegaba concatenado en un solo bloque sin ningún límite de
+    // página reconocible.
+    pageTexts.push(`--- Página ${pageNumber} ---\n${pageText}`);
   }
 
   await pdf.destroy();
