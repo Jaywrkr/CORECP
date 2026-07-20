@@ -78,6 +78,34 @@ test.describe("Anexo 3 — vinculación de proyectos y vista previa", () => {
     await expect(certificados).toHaveCount(2);
   });
 
+  test("regresión: Descargar PDF no recorta el documento al recuadro del modal", async ({ page }) => {
+    mockProcesosApi(page);
+    mockTecnicosApi(page, [fixtureTecnico()]);
+    mockProyectosApi(page, [fixtureProyecto()]);
+    await mockExtractApi(page);
+
+    await page.goto("/analizar");
+    await page.setInputFiles('input[type="file"]', SAMPLE_PDF);
+    await page.getByRole("button", { name: "Analizar" }).click();
+    await page.locator("table select").selectOption("t1");
+    await page.getByText("EMOV EP.", { exact: true }).click();
+    await page.waitForTimeout(200);
+    await page.getByRole("button", { name: "Vista previa Anexo 3" }).click();
+    await expect(page.locator("#anexo3-print-area")).toBeVisible();
+
+    await page.emulateMedia({ media: "print" });
+
+    const viewport = page.viewportSize();
+    const box = await page.locator("#anexo3-print-area").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThan((viewport?.width ?? 0) * 0.9);
+
+    await expect(page.getByRole("heading", { name: "Vista previa — Anexo 3" })).toBeHidden();
+    await expect(page.getByRole("heading", { name: "ANEXO 3: EXPERIENCIA DEL PERSONAL TÉCNICO", exact: true })).toBeVisible();
+
+    await page.emulateMedia({ media: "screen" });
+  });
+
   test("Descargar Word del Anexo 3 genera un .docx descargable", async ({ page }) => {
     mockProcesosApi(page);
     mockTecnicosApi(page, [fixtureTecnico()]);
