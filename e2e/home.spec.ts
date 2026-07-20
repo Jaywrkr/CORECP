@@ -51,4 +51,43 @@ test.describe("Página de inicio — buscador de procesos", () => {
     await expect(page.getByText("CENTROSUR-260202-REDES").first()).toBeVisible();
     await expect(page.getByText("ETAPA-260101-STORAGE")).toHaveCount(0);
   });
+
+  test('"Eliminar" siempre pide confirmación antes de borrar un proceso', async ({ page }) => {
+    mockProcesosApi(page);
+    mockTecnicosApi(page);
+
+    let deleteCalls = 0;
+    await page.route("**/api/procesos**", async (route, request) => {
+      const url = new URL(request.url());
+      if (request.method() === "GET" && !url.searchParams.get("numero")) {
+        return route.fulfill({
+          json: {
+            procesos: [
+              { numeroProceso: "ETAPA-260101-STORAGE", nombreProyecto: "ETAPA-260101-STORAGE", documentos: [], actualizadoEn: new Date().toISOString() },
+            ],
+          },
+        });
+      }
+      if (request.method() === "DELETE") {
+        deleteCalls++;
+        return route.fulfill({ json: { ok: true } });
+      }
+      return route.continue();
+    });
+
+    await page.goto("/");
+    await expect(page.getByText("ETAPA-260101-STORAGE").first()).toBeVisible();
+
+    // Dismissing the confirmation must NOT delete the process.
+    page.once("dialog", (dialog) => dialog.dismiss());
+    await page.getByRole("button", { name: "Eliminar" }).click();
+    await expect(page.getByText("ETAPA-260101-STORAGE").first()).toBeVisible();
+    expect(deleteCalls).toBe(0);
+
+    // Accepting the confirmation deletes it.
+    page.once("dialog", (dialog) => dialog.accept());
+    await page.getByRole("button", { name: "Eliminar" }).click();
+    await expect(page.getByText("ETAPA-260101-STORAGE")).toHaveCount(0);
+    expect(deleteCalls).toBe(1);
+  });
 });
