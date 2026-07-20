@@ -36,6 +36,36 @@ export const mockExtractionResult: ExtractionResult = {
     },
     manuales: { requerido: true, detalle: "físico y digital" },
   },
+  informacionGeneral: {
+    presupuestoReferencial: "$85.255,00",
+    plazoEjecucion: "120 días",
+    formaDePago: "100% contra entrega",
+    anticipo: "No aplica",
+    vigenciaOferta: "60 días término",
+    lugarEntrega: "Loja, instalaciones de ETAPA",
+    modalidadContratacion: "Subasta Inversa Electrónica",
+    garantias: ["Garantía de fiel cumplimiento del contrato", "Garantía técnica"],
+    multas: "1 por mil del valor del contrato por cada día de atraso.",
+    requisitosHabilitantes: ["Estar inscrito en el RUP en la categoría correspondiente"],
+    criteriosEvaluacion: ["Cumplimiento de especificaciones técnicas + menor precio"],
+  },
+  resumenEjecutivo: {
+    objetivo: "Facilitar la preparación de la oferta resaltando los requisitos obligatorios y puntos a verificar.",
+    entidadContratante: "Empresa de Telecomunicaciones, Agua Potable y Alcantarillado (ETAPA EP)",
+    alcanceEquipos: ["Librería de cintas LTO-9", "Servidor para gestión de respaldos"],
+    alcanceServicios: ["Instalación", "Configuración", "Capacitación", "Garantía"],
+    infraestructuraExistente: ["Plataforma de virtualización VMware", "Licencias de Veeam vigentes"],
+    requisitosClave: [
+      {
+        titulo: "Procesadores",
+        puntos: ["Debe cumplirse como mínimo: núcleos, frecuencia, caché", "Se aceptan equivalentes que igualen o superen el rendimiento"],
+        referencia: "Pregunta 2",
+      },
+    ],
+    documentacionRequerida: ["Datasheets del fabricante"],
+    checklist: ["Equipos cumplen especificaciones mínimas", "Garantía incluida"],
+    observaciones: ["Toda característica técnica debe sustentarse con documentación oficial del fabricante."],
+  },
 };
 
 export const mockExtractionResultDosPerfiles: ExtractionResult = {

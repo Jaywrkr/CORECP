@@ -5,7 +5,7 @@ import type { Anexo2Fila, Anexo3Fila, ExtractionResult } from "@/types/extractio
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
-const SYSTEM_PROMPT = `Eres un asistente experto en licitaciones y compras públicas en Ecuador, especializado en analizar pliegos para extraer requisitos de personal técnico.
+const SYSTEM_PROMPT = `Eres un asistente experto en licitaciones y compras públicas en Ecuador, especializado en analizar pliegos (y sus aclaraciones/actas de preguntas y respuestas) para preparar ofertas: tanto los requisitos de personal técnico como el resumen ejecutivo de todo el proceso.
 
 Puedes recibir uno o más documentos en la misma solicitud (por ejemplo: el mismo pliego dividido en partes, distintas secciones de un mismo proceso, o pliegos de procesos relacionados). Cada documento viene delimitado con su nombre de archivo.
 
@@ -17,11 +17,39 @@ Tu tarea: leer TODOS los documentos recibidos y producir UN SOLO resultado conso
   - Anexo 2: Personal Técnico (Función, Nombre, Nivel de estudio, Titulación académica)
   - Anexo 3: Experiencia del Personal Técnico (Personal, Cliente - Fecha de Acta/Factura, Proyecto, Monto)
 - Tres alertas puntuales sobre obligaciones del oferente: si el pliego exige presentar un cronograma de implementación, qué código(s) CPC identifican el objeto de contratación (para verificar si aplica transferencia de tecnología nivel TT2), y si hay que entregar manuales de uso.
+- Información general del proceso que NO tiene que ver con personal técnico ni experiencia (eso ya lo cubren los anexos): presupuesto, plazos, forma de pago, garantías, multas y las reglas de participación/calificación de ofertas. Esto es para un "resumen del proceso completo", así que cubre todo el pliego, no solo la parte de personal técnico.
+- Un resumen ejecutivo y checklist de cumplimiento de TODO el proceso: alcance del proyecto (equipos y servicios), infraestructura que la entidad ya posee (para no ofertarla de más), requisitos técnicos clave agrupados por tema (con su referencia dentro del pliego o de aclaraciones/acta de preguntas y respuestas si el documento las tiene), documentación que hay que sustentar, un checklist final verificable y observaciones importantes de cierre.
+
+Reglas para el resumen ejecutivo (clave "resumenEjecutivo"):
+- Si los documentos incluyen una o más "Actas de Preguntas y Respuestas" o aclaraciones del proceso, dales prioridad: muchas veces flexibilizan o aclaran cómo se puede demostrar el cumplimiento de un requisito del pliego original (sin reducir el requisito mínimo) — captura eso en "requisitosClave" y en "observaciones".
+- "objetivo": una frase breve sobre el propósito de este resumen, ej. "Facilitar la preparación de la oferta resaltando los requisitos obligatorios, aclaraciones emitidas por la entidad y puntos que deben verificarse antes de la presentación."
+- "entidadContratante": el nombre completo de la entidad contratante (a diferencia de "identificacion.cliente" que es un nombre corto).
+- "alcanceEquipos": arreglo con los equipos/bienes principales que forman parte del alcance (ej. "Librería de cintas LTO-9", "Servidor para gestión de respaldos"). Arreglo vacío si el proceso no incluye bienes.
+- "alcanceServicios": arreglo con los servicios incluidos en el alcance (ej. "Instalación", "Configuración", "Migración", "Capacitación", "Garantía", "Soporte"). Arreglo vacío si no aplica.
+- "infraestructuraExistente": arreglo con la infraestructura que la entidad YA POSEE, según el pliego, y que el oferente NO debe incluir en su oferta (ej. "Plataforma de virtualización VMware", "Licencias de Veeam vigentes", "Servidores Lenovo existentes"). Arreglo vacío si no se menciona.
+- "requisitosClave": arreglo de objetos { "titulo", "puntos": string[], "referencia" } — agrupa por tema los requisitos técnicos y aclaraciones más importantes para preparar la oferta (ej. título "Procesadores": puntos ["Debe cumplirse como mínimo: núcleos, frecuencia, caché, tipo de memoria", "Se aceptan equivalentes que igualen o superen el rendimiento requerido"], referencia "Pregunta 2" o "Aclaración 3" si el documento la cita, o "" si no hay una referencia puntual). No te limites a personal técnico — cubre equipos, compatibilidad, marcas, licenciamiento, sistema operativo, etc., lo que sea relevante en ESTE pliego.
+- "documentacionRequerida": arreglo con los documentos que hay que adjuntar para sustentar el cumplimiento de requisitos técnicos (ej. "Datasheets del fabricante", "Carta de partner/reseller autorizado, emitida máximo 1 mes antes de la oferta"). No incluyas aquí documentos de personal técnico (eso es Anexo 2/3).
+- "checklist": arreglo de 5 a 15 ítems concretos y verificables que el oferente debe confirmar antes de presentar la oferta (ej. "Equipos cumplen especificaciones mínimas", "Compatibilidad con la infraestructura existente confirmada", "Garantía incluida").
+- "observaciones": arreglo de 2 a 6 notas importantes de cierre — advertencias, aclaraciones que flexibilizan la forma de acreditar un requisito sin reducirlo, la obligación de sustentar toda característica técnica con documentación oficial, etc.
+- Si un documento no aporta información para alguna de estas claves, usa arreglos vacíos o "" — nunca inventes contenido que no esté en los documentos.
 
 Reglas para las alertas:
 - "codigosCpc": todos los códigos CPC (numéricos, típicamente de 7 a 11 dígitos) que el pliego use para identificar el/los bien(es) o servicio(s) contratados — busca términos como "Código CPC", "CPC N9", "Clasificador Central de Productos". Devuelve un arreglo vacío si el pliego no menciona ningún código CPC.
 - "cronograma": "requerido" es true si el pliego pide al OFERENTE (no a la entidad contratante) presentar un cronograma de implementación/ejecución del proyecto como parte de la oferta. "detalle" es una cita breve o paráfrasis del texto que lo exige, o "" si no se encontró.
 - "manuales": "requerido" es true si el pliego exige entregar manuales de uso/manejo del producto (en cualquier formato). "detalle" describe brevemente el formato exigido si se indica (ej. "físico y digital", "solo digital"), o "" si no se encontró o no especifica formato.
+
+Reglas para la información general del proceso:
+- "presupuestoReferencial": el monto del presupuesto referencial del proceso, con el texto tal como aparece (ej. "$45.320,00 sin IVA"), o "" si no aparece.
+- "plazoEjecucion": plazo de ejecución/entrega del contrato (ej. "90 días contados desde la firma del contrato"), o "" si no aparece.
+- "formaDePago": condiciones de pago (ej. "100% contra entrega y acta de recepción", "pagos parciales por hitos"), o "" si no aparece.
+- "anticipo": porcentaje o condición del anticipo si el pliego lo contempla, o "" si no aplica o no aparece.
+- "vigenciaOferta": tiempo que la oferta debe mantenerse vigente (ej. "60 días término"), o "" si no aparece.
+- "lugarEntrega": lugar de entrega/ejecución de los bienes/servicios, o "" si no aparece.
+- "modalidadContratacion": el procedimiento de contratación (ej. "Subasta Inversa Electrónica", "Menor Cuantía", "Licitación", "Cotización", "Ínfima Cuantía", "Régimen Especial"), o "" si no se identifica.
+- "garantias": arreglo con las garantías que el oferente/adjudicatario debe rendir (ej. "Garantía de fiel cumplimiento del contrato", "Garantía de buen uso del anticipo", "Garantía técnica"). Arreglo vacío si no aparecen.
+- "multas": condiciones de multas por atraso o incumplimiento, con el texto tal como aparece o una paráfrasis breve, o "" si no aparece.
+- "requisitosHabilitantes": arreglo con los requisitos para poder participar/ser habilitado (ej. "Estar inscrito en el RUP en la categoría correspondiente", "No estar incurso en inhabilidades del Art. 62 de la LOSNCP", "Capacidad legal para contratar con el Estado"). Arreglo vacío si no se detectan.
+- "criteriosEvaluacion": arreglo con los criterios o metodología de evaluación/calificación de las ofertas (ej. "Cumplimiento de especificaciones técnicas + menor precio", "Puntaje por experiencia del oferente: 20 puntos"). Arreglo vacío si no se detectan.
 
 Reglas para la identificación del proceso:
 - "cliente" es la entidad contratante (institución pública que convoca el proceso), en pocas palabras, ej: "ETAPA EP", "EERSSA", "Municipio de Cuenca". Si no se identifica con certeza, usa un nombre corto razonable a partir del texto o "" si es imposible determinarlo.
@@ -77,6 +105,32 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto adic
     "codigosCpc": ["código CPC tal como aparece en el documento"],
     "cronograma": { "requerido": true, "detalle": "cita o paráfrasis breve del requisito, o \"\" si no aplica" },
     "manuales": { "requerido": true, "detalle": "formato exigido si se indica, o \"\" si no aplica o no se especifica" }
+  },
+  "informacionGeneral": {
+    "presupuestoReferencial": "",
+    "plazoEjecucion": "",
+    "formaDePago": "",
+    "anticipo": "",
+    "vigenciaOferta": "",
+    "lugarEntrega": "",
+    "modalidadContratacion": "",
+    "garantias": [],
+    "multas": "",
+    "requisitosHabilitantes": [],
+    "criteriosEvaluacion": []
+  },
+  "resumenEjecutivo": {
+    "objetivo": "",
+    "entidadContratante": "",
+    "alcanceEquipos": [],
+    "alcanceServicios": [],
+    "infraestructuraExistente": [],
+    "requisitosClave": [
+      { "titulo": "ej. Procesadores", "puntos": ["punto 1", "punto 2"], "referencia": "ej. Pregunta 2, o \"\"" }
+    ],
+    "documentacionRequerida": [],
+    "checklist": [],
+    "observaciones": []
   }
 }
 
@@ -195,6 +249,20 @@ function normalizeResult(data: unknown): ExtractionResult {
     };
   };
 
+  const infoGeneralRaw = (obj.informacionGeneral ?? {}) as Record<string, unknown>;
+  const resumenRaw = (obj.resumenEjecutivo ?? {}) as Record<string, unknown>;
+  const requisitosClaveRaw = Array.isArray(resumenRaw.requisitosClave) ? resumenRaw.requisitosClave : [];
+  const requisitosClave = requisitosClaveRaw
+    .map((r) => {
+      const item = (r ?? {}) as Record<string, unknown>;
+      return {
+        titulo: toTrimmedString(item.titulo),
+        puntos: dedupeStrings(toStringArray(item.puntos)),
+        referencia: toTrimmedString(item.referencia),
+      };
+    })
+    .filter((r) => r.titulo || r.puntos.length > 0);
+
   return {
     requisitos: {
       personal: dedupeStrings(toStringArray(req.personal)),
@@ -219,6 +287,30 @@ function normalizeResult(data: unknown): ExtractionResult {
       codigosCpc: dedupeStrings(toStringArray(alertasRaw.codigosCpc)),
       cronograma: toAlerta(alertasRaw.cronograma),
       manuales: toAlerta(alertasRaw.manuales),
+    },
+    informacionGeneral: {
+      presupuestoReferencial: toTrimmedString(infoGeneralRaw.presupuestoReferencial),
+      plazoEjecucion: toTrimmedString(infoGeneralRaw.plazoEjecucion),
+      formaDePago: toTrimmedString(infoGeneralRaw.formaDePago),
+      anticipo: toTrimmedString(infoGeneralRaw.anticipo),
+      vigenciaOferta: toTrimmedString(infoGeneralRaw.vigenciaOferta),
+      lugarEntrega: toTrimmedString(infoGeneralRaw.lugarEntrega),
+      modalidadContratacion: toTrimmedString(infoGeneralRaw.modalidadContratacion),
+      garantias: dedupeStrings(toStringArray(infoGeneralRaw.garantias)),
+      multas: toTrimmedString(infoGeneralRaw.multas),
+      requisitosHabilitantes: dedupeStrings(toStringArray(infoGeneralRaw.requisitosHabilitantes)),
+      criteriosEvaluacion: dedupeStrings(toStringArray(infoGeneralRaw.criteriosEvaluacion)),
+    },
+    resumenEjecutivo: {
+      objetivo: toTrimmedString(resumenRaw.objetivo),
+      entidadContratante: toTrimmedString(resumenRaw.entidadContratante),
+      alcanceEquipos: dedupeStrings(toStringArray(resumenRaw.alcanceEquipos)),
+      alcanceServicios: dedupeStrings(toStringArray(resumenRaw.alcanceServicios)),
+      infraestructuraExistente: dedupeStrings(toStringArray(resumenRaw.infraestructuraExistente)),
+      requisitosClave,
+      documentacionRequerida: dedupeStrings(toStringArray(resumenRaw.documentacionRequerida)),
+      checklist: dedupeStrings(toStringArray(resumenRaw.checklist)),
+      observaciones: dedupeStrings(toStringArray(resumenRaw.observaciones)),
     },
   };
 }

@@ -118,13 +118,24 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
     esa tabla es una transcripción manual de una imagen escaneada, así que
     **siempre debe verificarse contra el listado oficial vigente antes de
     ofertar**), y si hay que entregar **manuales** de uso (físicos y/o
-    digitales). El botón **"Resumen del proceso"** abre un documento aparte
-    que consolida todo lo anterior — fechas clave, equipo técnico propuesto
-    (con el técnico asignado a cada perfil), los requisitos detectados y las
-    tres alertas, más la documentación de respaldo (proyectos vinculados) —
-    con sus propios botones "Descargar PDF" y "Descargar Word". A propósito
-    **no incluye especificaciones técnicas de producto/marca**, ya que esas
-    dependen del fabricante ofertado y no se extraen de forma genérica.
+    digitales). El botón **"Resumen del proceso"** abre un "Resumen ejecutivo
+    y checklist de cumplimiento" del proceso COMPLETO — deliberadamente
+    distinto del Anexo 2 y el Anexo 3, que son exclusivamente sobre personal
+    técnico y su experiencia. Cubre: información general (entidad, modalidad,
+    objeto, presupuesto referencial, plazo, forma de pago, anticipo, vigencia
+    de la oferta, lugar de entrega), el cronograma del proceso, el alcance
+    del proyecto (equipos/bienes y servicios incluidos, como checklist),
+    infraestructura que la entidad ya posee (para no ofertarla de más),
+    requisitos técnicos clave agrupados por tema con su referencia en el
+    pliego o en el acta de preguntas y respuestas (si se sube como documento
+    adicional del mismo proceso), garantías y multas, requisitos
+    habilitantes, criterios de evaluación de ofertas, documentación a
+    sustentar, las tres alertas ya mencionadas, un checklist final y
+    observaciones importantes de cierre — con sus propios botones "Descargar
+    PDF" y "Descargar Word", en un estilo visual propio (no la plantilla
+    formal de Coresolutions). A propósito **no incluye especificaciones
+    técnicas de producto/marca**, ya que esas dependen del fabricante
+    ofertado y no se extraen de forma genérica.
 
 ## Desarrollo local
 

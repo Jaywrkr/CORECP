@@ -1,8 +1,6 @@
 "use client";
 
-import type { Anexo2Fila, Anexo3ProyectosMap, ExtractionResult } from "@/types/extraction";
-import type { Proyecto } from "@/types/proyecto";
-import type { Tecnico } from "@/types/tecnico";
+import type { ExtractionResult } from "@/types/extraction";
 import { buscarCoincidenciaTT2 } from "@/lib/cpcTT2";
 import { formatFechaLarga } from "@/lib/formatFechaLarga";
 
@@ -10,15 +8,14 @@ interface ResumenPreviewProps {
   result: ExtractionResult;
   numeroProceso?: string;
   nombreProyecto?: string | null;
-  tecnicos: Tecnico[];
-  proyectos: Proyecto[];
-  asignaciones: Record<number, string>;
-  anexo3Proyectos: Anexo3ProyectosMap;
 }
 
 // Documento standalone, deliberadamente sin el membrete/plantilla formal de
-// Coresolutions (esa es la de los Anexos) — este es un resumen interno de
-// lectura rápida, con su propia identidad visual tipo dashboard.
+// Coresolutions (esa es la de los Anexos) — este es el "resumen ejecutivo y
+// checklist de cumplimiento" de TODO el proceso (alcance, aclaraciones
+// técnicas clave, infraestructura existente, condiciones económicas, reglas
+// de participación...), no del personal técnico ni su experiencia, que ya
+// cubren el Anexo 2 y el Anexo 3 por separado.
 const FONT_MODERNA = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Helvetica, Arial, sans-serif";
 const ACCENT = "#4F46E5";
 const ACCENT_SOFT = "#EEF2FF";
@@ -31,20 +28,6 @@ const GREEN_SOFT = "#F0FDF4";
 const RED = "#DC2626";
 const RED_SOFT = "#FEF2F2";
 
-const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
-  { key: "personal", label: "Personal técnico requerido" },
-  { key: "nivelAcademico", label: "Nivel académico exigido" },
-  { key: "titulacion", label: "Titulación específica requerida" },
-  { key: "certificaciones", label: "Certificaciones técnicas exigidas" },
-  { key: "experiencia", label: "Experiencia mínima requerida" },
-  { key: "otros", label: "Otros requisitos relevantes" },
-];
-
-function nombreTecnicoAsignado(fila: Anexo2Fila, rowIndex: number, tecnicos: Tecnico[], asignaciones: Record<number, string>): string {
-  const tecnico = tecnicos.find((t) => t.id === asignaciones[rowIndex]);
-  return tecnico?.nombre || fila.nombre || "Sin asignar";
-}
-
 function Card({ children }: { children: React.ReactNode }) {
   return (
     <div className="rounded-xl border p-5" style={{ borderColor: BORDER, background: "#ffffff" }} data-break-inside-avoid>
@@ -53,36 +36,37 @@ function Card({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SectionTitle({ icon, children }: { icon: string; children: React.ReactNode }) {
+function Seccion({ icon, titulo, numero, children }: { icon: string; titulo: string; numero: number; children: React.ReactNode }) {
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <span aria-hidden style={{ fontSize: "16px" }}>
-        {icon}
-      </span>
-      <h2 className="text-[13px] font-bold tracking-wide uppercase" style={{ color: INK }}>
-        {children}
-      </h2>
-    </div>
+    <Card>
+      <div className="mb-3 flex items-center gap-2">
+        <span
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-[11px] font-bold"
+          style={{ background: ACCENT_SOFT, color: ACCENT }}
+        >
+          {numero}
+        </span>
+        <span aria-hidden style={{ fontSize: "15px" }}>
+          {icon}
+        </span>
+        <h2 className="text-[13px] font-bold tracking-wide uppercase" style={{ color: INK }}>
+          {titulo}
+        </h2>
+      </div>
+      {children}
+    </Card>
   );
 }
 
-function StatChip({ label, value, tone = "neutral" }: { label: string; value: string | number; tone?: "neutral" | "danger" }) {
+function Vacio({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className="flex flex-col gap-0.5 rounded-lg border px-3 py-2.5"
-      style={{ borderColor: tone === "danger" ? "#FCA5A5" : BORDER, background: tone === "danger" ? RED_SOFT : SURFACE }}
-    >
-      <span className="text-[20px] leading-none font-bold" style={{ color: tone === "danger" ? RED : INK }}>
-        {value}
-      </span>
-      <span className="text-[11px]" style={{ color: MUTED }}>
-        {label}
-      </span>
-    </div>
+    <p className="text-[13px] italic" style={{ color: MUTED }}>
+      {children}
+    </p>
   );
 }
 
-function FechaChip({ label, value }: { label: string; value: string }) {
+function DatoChip({ label, value }: { label: string; value: string }) {
   const set = Boolean(value);
   return (
     <div className="rounded-lg border p-3" style={{ borderColor: BORDER, background: SURFACE }}>
@@ -90,9 +74,43 @@ function FechaChip({ label, value }: { label: string; value: string }) {
         {label}
       </p>
       <p className="text-[13px] font-medium" style={{ color: set ? INK : MUTED, fontStyle: set ? "normal" : "italic" }}>
-        {value || "No especificada"}
+        {value || "No especificado"}
       </p>
     </div>
+  );
+}
+
+function ListaChips({ items, vacio }: { items: string[]; vacio: string }) {
+  if (items.length === 0) return <Vacio>{vacio}</Vacio>;
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {items.map((item, i) => (
+        <li key={i} className="flex items-start gap-2 text-[13px]" style={{ color: INK }}>
+          <span aria-hidden className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: ACCENT }} />
+          {item}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function ListaChecklist({ items, vacio }: { items: string[]; vacio: string }) {
+  if (items.length === 0) return <Vacio>{vacio}</Vacio>;
+  return (
+    <ul className="flex flex-col gap-2">
+      {items.map((item, i) => (
+        <li
+          key={i}
+          className="flex items-start gap-2 rounded-lg border p-2.5 text-[13px]"
+          style={{ borderColor: BORDER, background: SURFACE, color: INK }}
+        >
+          <span aria-hidden style={{ color: MUTED }}>
+            ☐
+          </span>
+          {item}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -119,27 +137,15 @@ function AlertaCard({ label, requerido, detalle }: { label: string; requerido: b
   );
 }
 
-export default function ResumenPreview({
-  result,
-  numeroProceso,
-  nombreProyecto,
-  tecnicos,
-  proyectos,
-  asignaciones,
-  anexo3Proyectos,
-}: ResumenPreviewProps) {
-  const { requisitos, fechasClave, identificacion, anexo2Sugerido, alertas } = result;
-
-  const proyectoIdsVinculados = Array.from(new Set(Object.values(anexo3Proyectos).flat()));
-  const proyectosVinculados = proyectoIdsVinculados
-    .map((id) => proyectos.find((p) => p.id === id))
-    .filter((p): p is Proyecto => Boolean(p));
+export default function ResumenPreview({ result, numeroProceso, nombreProyecto }: ResumenPreviewProps) {
+  const { fechasClave, identificacion, alertas, informacionGeneral: info, resumenEjecutivo: r } = result;
 
   const codigosCpc = alertas?.codigosCpc ?? [];
   const coincidenciasTT2 = codigosCpc.map((codigo) => ({ codigo, match: buscarCoincidenciaTT2(codigo) })).filter((c) => c.match);
   const requiereTT2 = coincidenciasTT2.length > 0;
-  const cantidadAlertasActivas = [alertas?.cronograma.requerido, requiereTT2, alertas?.manuales.requerido].filter(Boolean).length;
-  const hayRequisitos = CATEGORY_LABELS.some(({ key }) => requisitos[key].length > 0);
+
+  let seccionContador = 0;
+  const n = () => ++seccionContador;
 
   return (
     <div
@@ -151,7 +157,7 @@ export default function ResumenPreview({
       <div className="flex items-start justify-between gap-4">
         <div>
           <p className="mb-1 text-[11px] font-bold tracking-[0.1em] uppercase" style={{ color: ACCENT }}>
-            Resumen del proceso
+            Resumen ejecutivo y checklist de cumplimiento
           </p>
           <h1 className="text-[22px] leading-tight font-bold" style={{ color: INK }}>
             {identificacion.descripcion || "Proceso sin descripción"}
@@ -161,98 +167,125 @@ export default function ResumenPreview({
             {numeroProceso ? ` · ${numeroProceso}` : ""}
             {nombreProyecto ? ` · ${nombreProyecto}` : ""}
           </p>
+          {r?.objetivo && (
+            <p className="mt-2 text-[12.5px] italic" style={{ color: MUTED }}>
+              {r.objetivo}
+            </p>
+          )}
         </div>
         <p className="shrink-0 text-right text-[11px]" style={{ color: MUTED }}>
           Generado el {formatFechaLarga()}
         </p>
       </div>
 
-      {/* Vistazo rápido */}
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
-        <StatChip label="Perfiles técnicos" value={anexo2Sugerido.length} />
-        <StatChip label="Proyectos vinculados" value={proyectosVinculados.length} />
-        <StatChip label="Requisitos detectados" value={CATEGORY_LABELS.reduce((n, { key }) => n + requisitos[key].length, 0)} />
-        <StatChip label="Alertas activas" value={cantidadAlertasActivas} tone={cantidadAlertasActivas > 0 ? "danger" : "neutral"} />
-      </div>
-
-      <Card>
-        <SectionTitle icon="📅">Fechas clave</SectionTitle>
+      <Seccion icon="🏢" titulo="Información general" numero={n()}>
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
-          <FechaChip label="Presentación de oferta" value={fechasClave.presentacionOferta} />
-          <FechaChip label="Puja / subasta inversa" value={fechasClave.puja} />
-          <FechaChip label="Adjudicación" value={fechasClave.adjudicacion} />
+          <DatoChip label="Entidad" value={r?.entidadContratante || identificacion.cliente} />
+          {numeroProceso && <DatoChip label="Proceso" value={numeroProceso} />}
+          <DatoChip label="Modalidad" value={info?.modalidadContratacion ?? ""} />
+          <DatoChip label="Objeto" value={identificacion.descripcion} />
+          <DatoChip label="Presupuesto referencial" value={info?.presupuestoReferencial ?? ""} />
+          <DatoChip label="Plazo de ejecución" value={info?.plazoEjecucion ?? ""} />
+          <DatoChip label="Forma de pago" value={info?.formaDePago ?? ""} />
+          <DatoChip label="Anticipo" value={info?.anticipo ?? ""} />
+          <DatoChip label="Vigencia de la oferta" value={info?.vigenciaOferta ?? ""} />
+          <DatoChip label="Lugar de entrega / ejecución" value={info?.lugarEntrega ?? ""} />
         </div>
-      </Card>
+      </Seccion>
 
-      <Card>
-        <SectionTitle icon="👥">Equipo técnico propuesto</SectionTitle>
-        {anexo2Sugerido.length === 0 ? (
-          <p className="text-[13px] italic" style={{ color: MUTED }}>
-            No se detectaron perfiles de personal técnico.
-          </p>
-        ) : (
-          <div className="overflow-hidden rounded-lg border" style={{ borderColor: BORDER }}>
-            <table className="w-full min-w-[560px] border-collapse text-[12.5px]">
-              <thead>
-                <tr style={{ background: SURFACE }}>
-                  {["Función", "Técnico asignado", "Nivel de estudio", "Titulación académica"].map((h) => (
-                    <th key={h} className="p-2.5 text-left font-semibold" style={{ color: MUTED }}>
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {anexo2Sugerido.map((fila, i) => (
-                  <tr key={i} style={{ borderTop: `1px solid ${BORDER}` }}>
-                    <td className="p-2.5">{fila.funcion}</td>
-                    <td className="p-2.5 font-medium">{nombreTecnicoAsignado(fila, i, tecnicos, asignaciones)}</td>
-                    <td className="p-2.5">{fila.nivelEstudio}</td>
-                    <td className="p-2.5">{fila.titulacionAcademica}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      <Seccion icon="📅" titulo="Cronograma" numero={n()}>
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+          <DatoChip label="Presentación de oferta" value={fechasClave.presentacionOferta} />
+          <DatoChip label="Puja / subasta inversa" value={fechasClave.puja} />
+          <DatoChip label="Adjudicación" value={fechasClave.adjudicacion} />
+        </div>
+      </Seccion>
+
+      <Seccion icon="📦" titulo="Alcance del proyecto" numero={n()}>
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="mb-1.5 text-[12px] font-semibold" style={{ color: INK }}>
+              Equipos / bienes
+            </p>
+            <ListaChecklist items={r?.alcanceEquipos ?? []} vacio="No se detectaron bienes/equipos en el alcance." />
           </div>
-        )}
-      </Card>
+          <div>
+            <p className="mb-1.5 text-[12px] font-semibold" style={{ color: INK }}>
+              Servicios incluidos
+            </p>
+            <ListaChips items={r?.alcanceServicios ?? []} vacio="No se detectaron servicios en el alcance." />
+          </div>
+        </div>
+      </Seccion>
 
-      <Card>
-        <SectionTitle icon="📋">Requerimientos detectados</SectionTitle>
-        {!hayRequisitos ? (
-          <p className="text-[13px] italic" style={{ color: MUTED }}>
-            No se detectaron requisitos de personal técnico.
-          </p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {CATEGORY_LABELS.map(({ key, label }) => {
-              const items = requisitos[key];
-              if (items.length === 0) return null;
-              return (
-                <div key={key}>
-                  <p className="mb-1.5 text-[12px] font-semibold" style={{ color: INK }}>
-                    {label}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {items.map((item, i) => (
-                      <span
-                        key={i}
-                        className="rounded-md border px-2 py-1 text-[12px]"
-                        style={{ borderColor: BORDER, background: ACCENT_SOFT, color: INK }}
-                      >
-                        {item}
+      {(r?.requisitosClave.length ?? 0) > 0 && (
+        <Seccion icon="🔑" titulo="Requisitos técnicos clave" numero={n()}>
+          <div className="flex flex-col gap-4">
+            {r?.requisitosClave.map((req, i) => (
+              <div key={i}>
+                <p className="mb-1 text-[13px] font-semibold" style={{ color: INK }}>
+                  {req.titulo}
+                </p>
+                <ul className="flex flex-col gap-1">
+                  {req.puntos.map((punto, j) => (
+                    <li key={j} className="flex items-start gap-2 text-[12.5px]" style={{ color: INK }}>
+                      <span aria-hidden style={{ color: GREEN }}>
+                        ✔
                       </span>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+                      {punto}
+                    </li>
+                  ))}
+                </ul>
+                {req.referencia && (
+                  <p className="mt-1 text-[11px] italic" style={{ color: MUTED }}>
+                    Referencia: {req.referencia}
+                  </p>
+                )}
+              </div>
+            ))}
           </div>
-        )}
-      </Card>
+        </Seccion>
+      )}
 
-      <Card>
-        <SectionTitle icon="⚠️">Entregables y obligaciones del oferente</SectionTitle>
+      {(r?.infraestructuraExistente.length ?? 0) > 0 && (
+        <Seccion icon="🖥️" titulo="Infraestructura existente" numero={n()}>
+          <p className="mb-2 text-[12.5px]" style={{ color: MUTED }}>
+            La entidad ya cuenta con lo siguiente — no ofertarlo de más:
+          </p>
+          <ListaChips items={r?.infraestructuraExistente ?? []} vacio="" />
+        </Seccion>
+      )}
+
+      <Seccion icon="🛡️" titulo="Garantías y multas" numero={n()}>
+        <div className="mb-3">
+          <p className="mb-1.5 text-[12px] font-semibold" style={{ color: INK }}>
+            Garantías exigidas
+          </p>
+          <ListaChips items={info?.garantias ?? []} vacio="No se detectaron garantías exigidas en el pliego." />
+        </div>
+        <div>
+          <p className="mb-1.5 text-[12px] font-semibold" style={{ color: INK }}>
+            Multas
+          </p>
+          <p className="text-[13px]" style={{ color: info?.multas ? INK : MUTED, fontStyle: info?.multas ? "normal" : "italic" }}>
+            {info?.multas || "No se detectaron condiciones de multas en el pliego."}
+          </p>
+        </div>
+      </Seccion>
+
+      <Seccion icon="✅" titulo="Requisitos habilitantes" numero={n()}>
+        <ListaChips items={info?.requisitosHabilitantes ?? []} vacio="No se detectaron requisitos habilitantes específicos en el pliego." />
+      </Seccion>
+
+      <Seccion icon="⚖️" titulo="Criterios de evaluación de ofertas" numero={n()}>
+        <ListaChips items={info?.criteriosEvaluacion ?? []} vacio="No se detectó una metodología de evaluación explícita en el pliego." />
+      </Seccion>
+
+      <Seccion icon="📄" titulo="Documentación requerida" numero={n()}>
+        <ListaChips items={r?.documentacionRequerida ?? []} vacio="No se detectaron documentos de sustento específicos en el pliego." />
+      </Seccion>
+
+      <Seccion icon="⚠️" titulo="Entregables y obligaciones del oferente" numero={n()}>
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
           <AlertaCard
             label="Cronograma de implementación"
@@ -272,37 +305,21 @@ export default function ResumenPreview({
           />
           <AlertaCard label="Entrega de manuales" requerido={alertas?.manuales.requerido ?? false} detalle={alertas?.manuales.detalle ?? ""} />
         </div>
-      </Card>
+      </Seccion>
 
-      <Card>
-        <SectionTitle icon="📎">Documentación de respaldo</SectionTitle>
-        {proyectosVinculados.length === 0 ? (
-          <p className="text-[13px] italic" style={{ color: MUTED }}>
-            Aún no hay proyectos vinculados a ningún perfil del Anexo 3.
-          </p>
-        ) : (
-          <ol className="flex flex-col gap-2">
-            {proyectosVinculados.map((proyecto, i) => (
-              <li key={proyecto.id} className="rounded-lg border p-2.5 text-[12.5px]" style={{ borderColor: BORDER, background: SURFACE }}>
-                <span className="font-semibold">
-                  {i + 1}. {proyecto.cliente}
-                </span>{" "}
-                — {proyecto.descripcionCorta}
-                <br />
-                <span style={{ color: MUTED }}>
-                  Acta: {proyecto.archivoActaEntrega?.nombre || "(sin archivo)"} · Certificado:{" "}
-                  {proyecto.archivoCertificadoParticipacion?.nombre || "(sin archivo)"}
-                </span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Card>
+      <Seccion icon="📋" titulo="Checklist de cumplimiento" numero={n()}>
+        <ListaChecklist items={r?.checklist ?? []} vacio="No se generó un checklist específico para este proceso." />
+      </Seccion>
+
+      <Seccion icon="🗒️" titulo="Observaciones importantes" numero={n()}>
+        <ListaChips items={r?.observaciones ?? []} vacio="No hay observaciones adicionales." />
+      </Seccion>
 
       <p className="pt-1 text-[11px] italic" style={{ color: MUTED }}>
-        No incluye especificaciones técnicas de producto/marca — consulta el pliego original para ese
-        detalle. Generado automáticamente a partir del análisis del proceso; revisa cada punto antes de
-        presentar la oferta.
+        Este resumen cubre el proceso en general — no incluye el detalle de personal técnico ni su
+        experiencia, que están en el Anexo 2 y el Anexo 3, ni especificaciones técnicas de producto/marca.
+        Generado automáticamente a partir del análisis del proceso; revisa cada punto antes de presentar la
+        oferta.
       </p>
     </div>
   );
