@@ -50,7 +50,9 @@ export default function Home() {
     );
   }, [procesos, query]);
 
-  const handleDelete = async (numero: string) => {
+  const handleDelete = async (numero: string, nombreProyecto: string) => {
+    const confirmado = window.confirm(`¿Eliminar el proceso "${nombreProyecto}" (${numero})? Esta acción no se puede deshacer.`);
+    if (!confirmado) return;
     setError(null);
     try {
       const res = await fetch(`/api/procesos?numero=${encodeURIComponent(numero)}`, {
@@ -179,7 +181,7 @@ export default function Home() {
                   </div>
                 </Link>
                 <button
-                  onClick={() => handleDelete(p.numeroProceso)}
+                  onClick={() => handleDelete(p.numeroProceso, p.nombreProyecto)}
                   className="shrink-0 rounded px-2 py-1 text-xs hover:bg-white/5"
                   style={{ color: "var(--danger)" }}
                 >

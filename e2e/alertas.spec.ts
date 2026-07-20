@@ -91,7 +91,7 @@ test.describe("Alertas del proceso y resumen consolidado", () => {
     expect(box).not.toBeNull();
     expect(box!.width).toBeGreaterThan((viewport?.width ?? 0) * 0.9);
 
-    await expect(page.getByRole("heading", { name: "Resumen del proceso" })).toBeHidden();
+    await expect(page.getByRole("heading", { name: "Resumen del proceso", exact: true })).toBeHidden();
 
     await page.emulateMedia({ media: "screen" });
   });
