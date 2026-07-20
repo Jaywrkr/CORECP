@@ -33,12 +33,31 @@ export interface Identificacion {
   descripcion: string;
 }
 
+// Alerta booleana con el fragmento de texto del pliego que la sustenta, para
+// que el usuario pueda verificarla sin tener que releer todo el documento.
+export interface AlertaDetectada {
+  requerido: boolean;
+  detalle: string;
+}
+
+// Tres alertas puntuales que conviene ver de un vistazo al abrir un proceso:
+// si hay que presentar un cronograma de implementación, si aplica el nivel
+// TT2 de transferencia de tecnología (según los códigos CPC que mencione el
+// pliego, comparados contra la Tabla 2 de SERCOP) y si hay que entregar
+// manuales físicos/digitales.
+export interface AlertasProceso {
+  codigosCpc: string[];
+  cronograma: AlertaDetectada;
+  manuales: AlertaDetectada;
+}
+
 export interface ExtractionResult {
   requisitos: RequisitosDetectados;
   fechasClave: FechasClave;
   identificacion: Identificacion;
   anexo2Sugerido: Anexo2Fila[];
   anexo3Sugerido: Anexo3Fila[];
+  alertas?: AlertasProceso;
 }
 
 export type ExtractionStatus = "idle" | "uploading" | "extracting" | "done" | "error";

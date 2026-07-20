@@ -18,9 +18,12 @@ import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
 import Anexo2Preview from "./Anexo2Preview";
 import Anexo3Preview from "./Anexo3Preview";
+import ResumenPreview from "./ResumenPreview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
 import { descargarBlob, generarAnexo2Docx } from "@/lib/exportarAnexo2Docx";
 import { generarAnexo3Docx } from "@/lib/exportarAnexo3Docx";
+import { generarResumenDocx } from "@/lib/exportarResumenDocx";
+import { buscarCoincidenciaTT2 } from "@/lib/cpcTT2";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -29,6 +32,8 @@ interface RequisitosPanelProps {
   onRetry?: () => void;
   documentCount?: number;
   progressLabel?: string | null;
+  numeroProceso?: string;
+  nombreProyecto?: string | null;
   tecnicos?: Tecnico[];
   proyectos?: Proyecto[];
   asignaciones?: Record<number, string>;
@@ -82,6 +87,8 @@ export default function RequisitosPanel({
   onRetry,
   documentCount = 0,
   progressLabel,
+  numeroProceso,
+  nombreProyecto,
   tecnicos = [],
   proyectos = [],
   asignaciones = {},
@@ -109,7 +116,33 @@ export default function RequisitosPanel({
   const [exportingWordAnexo3, setExportingWordAnexo3] = useState(false);
   const [exportErrorAnexo3, setExportErrorAnexo3] = useState<string | null>(null);
 
+  const [showResumen, setShowResumen] = useState(false);
+  const [exportingWordResumen, setExportingWordResumen] = useState(false);
+  const [exportErrorResumen, setExportErrorResumen] = useState<string | null>(null);
+
   const handleDescargarPdf = () => window.print();
+
+  const handleDescargarWordResumen = async () => {
+    if (!result) return;
+    setExportingWordResumen(true);
+    setExportErrorResumen(null);
+    try {
+      const blob = await generarResumenDocx({
+        result,
+        numeroProceso,
+        nombreProyecto,
+        tecnicos,
+        proyectos,
+        asignaciones,
+        anexo3Proyectos,
+      });
+      descargarBlob(blob, "Resumen_del_Proceso.docx");
+    } catch (err) {
+      setExportErrorResumen(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
+    } finally {
+      setExportingWordResumen(false);
+    }
+  };
 
   const handleDescargarWord = async () => {
     if (!result) return;
@@ -217,10 +250,16 @@ export default function RequisitosPanel({
 
   if (!result) return null;
 
-  const { requisitos, fechasClave, anexo2Sugerido, anexo3Sugerido } = result;
+  const { requisitos, fechasClave, anexo2Sugerido, anexo3Sugerido, alertas } = result;
   const hasAnyRequisitos = CATEGORY_LABELS.some((c) => requisitos[c.key].length > 0);
   const hasFechasClave =
     !!fechasClave && (fechasClave.presentacionOferta || fechasClave.puja || fechasClave.adjudicacion);
+
+  const codigosCpc = alertas?.codigosCpc ?? [];
+  const coincidenciasTT2 = codigosCpc
+    .map((codigo) => ({ codigo, match: buscarCoincidenciaTT2(codigo) }))
+    .filter((c) => c.match);
+  const requiereTT2 = coincidenciasTT2.length > 0;
 
   return (
     <div className="flex flex-col gap-8 px-5 py-5">
@@ -229,6 +268,45 @@ export default function RequisitosPanel({
           Análisis consolidado de {documentCount} documentos — la información repetida entre archivos
           se combinó en una sola vista.
         </p>
+      )}
+
+      <div>
+        <button
+          onClick={() => setShowResumen(true)}
+          className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+          style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+        >
+          Resumen del proceso
+        </button>
+      </div>
+
+      {alertas && (
+        <section
+          className="rounded-md border p-4"
+          style={{ borderColor: "var(--danger)", background: "var(--danger-soft)" }}
+        >
+          <h2
+            className="mb-3 text-[11px] font-semibold tracking-[0.08em] uppercase"
+            style={{ color: "var(--danger)" }}
+          >
+            Alertas del proceso
+          </h2>
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <AlertaClaveItem label="Cronograma de implementación" requerido={alertas.cronograma.requerido} detalle={alertas.cronograma.detalle} />
+            <AlertaClaveItem
+              label="Transferencia de tecnología (TT2)"
+              requerido={requiereTT2}
+              detalle={
+                codigosCpc.length === 0
+                  ? "No se detectó código CPC en el pliego."
+                  : requiereTT2
+                    ? `CPC ${coincidenciasTT2.map((c) => c.codigo).join(", ")} coincide con la Tabla 2 de SERCOP.`
+                    : `CPC ${codigosCpc.join(", ")} no coincide con la Tabla 2 transcrita — verificar manualmente.`
+              }
+            />
+            <AlertaClaveItem label="Entrega de manuales" requerido={alertas.manuales.requerido} detalle={alertas.manuales.detalle} />
+          </dl>
+        </section>
       )}
 
       {hasFechasClave && (
@@ -663,6 +741,67 @@ export default function RequisitosPanel({
           </div>
         </div>
       )}
+
+      {showResumen && (
+        <div
+          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setShowResumen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Resumen del proceso
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDescargarPdf}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Descargar PDF
+                </button>
+                <button
+                  onClick={handleDescargarWordResumen}
+                  disabled={exportingWordResumen}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {exportingWordResumen ? "Generando…" : "Descargar Word"}
+                </button>
+                <button
+                  onClick={() => setShowResumen(false)}
+                  aria-label="Cerrar"
+                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
+              {exportErrorResumen && (
+                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
+                  {exportErrorResumen}
+                </p>
+              )}
+              <ResumenPreview
+                result={result}
+                numeroProceso={numeroProceso}
+                nombreProyecto={nombreProyecto}
+                tecnicos={tecnicos}
+                proyectos={proyectos}
+                asignaciones={asignaciones}
+                anexo3Proyectos={anexo3Proyectos}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -678,6 +817,28 @@ function FechaClaveItem({ label, value }: { label: string; value: string }) {
         style={{ color: value ? "var(--text-primary)" : "var(--text-tertiary)" }}
       >
         {value || "No especificada"}
+      </dd>
+    </div>
+  );
+}
+
+function AlertaClaveItem({ label, requerido, detalle }: { label: string; requerido: boolean; detalle: string }) {
+  return (
+    <div>
+      <dt className="mb-0.5 flex items-center gap-1.5 text-[11px]" style={{ color: "var(--text-secondary)" }}>
+        <span
+          className="rounded px-1 py-0.5 text-[10px] font-bold"
+          style={{
+            background: requerido ? "var(--danger-soft)" : "rgba(74, 222, 128, 0.12)",
+            color: requerido ? "var(--danger)" : "var(--success)",
+          }}
+        >
+          {requerido ? "SÍ" : "NO"}
+        </span>
+        {label}
+      </dt>
+      <dd className="text-sm" style={{ color: "var(--text-primary)" }}>
+        {detalle || (requerido ? "Sin más detalle en el texto." : "No se detectó este requisito.")}
       </dd>
     </div>
   );

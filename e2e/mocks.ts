@@ -28,6 +28,14 @@ export const mockExtractionResult: ExtractionResult = {
       requisitoExperiencia: "Experiencia mínima de 3 años en al menos 2 proyectos similares.",
     },
   ],
+  alertas: {
+    codigosCpc: ["452300044"],
+    cronograma: {
+      requerido: true,
+      detalle: "El oferente debe presentar un cronograma de implementación como parte de la oferta.",
+    },
+    manuales: { requerido: true, detalle: "físico y digital" },
+  },
 };
 
 export const mockExtractionResultDosPerfiles: ExtractionResult = {
