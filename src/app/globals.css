@@ -111,7 +111,9 @@ body {
   #anexo2-print-area,
   #anexo2-print-area *,
   #anexo3-print-area,
-  #anexo3-print-area * {
+  #anexo3-print-area *,
+  #resumen-print-area,
+  #resumen-print-area * {
     visibility: visible;
   }
 
@@ -139,13 +141,16 @@ body {
   #anexo2-print-area,
   #anexo2-print-area *,
   #anexo3-print-area,
-  #anexo3-print-area * {
+  #anexo3-print-area *,
+  #resumen-print-area,
+  #resumen-print-area * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
   #anexo2-print-area,
-  #anexo3-print-area {
+  #anexo3-print-area,
+  #resumen-print-area {
     position: absolute;
     top: 0;
     left: 0;

@@ -727,6 +727,8 @@ export default function AnalizarContent() {
             onRetry={handleRetry}
             documentCount={documents.length}
             progressLabel={progressLabel}
+            numeroProceso={numeroProceso}
+            nombreProyecto={nombreProyecto}
             tecnicos={tecnicos}
             proyectos={proyectos}
             asignaciones={asignaciones}

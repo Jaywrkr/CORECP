@@ -109,6 +109,22 @@ proceso**, para poder reutilizarlos entre sesiones y usuarios (ver más abajo).
     referenciados y los nombres de sus archivos adjuntos. Igual que en el
     Anexo 2: "Editar todo" vuelve editable cualquier texto, la fecha de firma
     siempre es editable, y hay botones "Descargar PDF" y "Descargar Word".
+12. Al inicio de la columna derecha, junto a las fechas clave, se muestran
+    **tres alertas del proceso** detectadas por la IA: si el pliego exige un
+    **cronograma de implementación** de parte del oferente, si aplica el
+    **Nivel TT2 de transferencia de tecnología** de SERCOP (comparando el/los
+    código(s) CPC que menciona el pliego contra la Tabla 2 del Cuaderno de
+    Trabajo XIV de SERCOP, incluida como referencia en `src/lib/cpcTT2.ts` —
+    esa tabla es una transcripción manual de una imagen escaneada, así que
+    **siempre debe verificarse contra el listado oficial vigente antes de
+    ofertar**), y si hay que entregar **manuales** de uso (físicos y/o
+    digitales). El botón **"Resumen del proceso"** abre un documento aparte
+    que consolida todo lo anterior — fechas clave, equipo técnico propuesto
+    (con el técnico asignado a cada perfil), los requisitos detectados y las
+    tres alertas, más la documentación de respaldo (proyectos vinculados) —
+    con sus propios botones "Descargar PDF" y "Descargar Word". A propósito
+    **no incluye especificaciones técnicas de producto/marca**, ya que esas
+    dependen del fabricante ofertado y no se extraen de forma genérica.
 
 ## Desarrollo local
 
@@ -170,8 +186,12 @@ análisis manual (sin auto-análisis, caché por número de proceso, guardado al
 salir con "Volver"), el roster de técnicos y de proyectos (alta y documentos
 multi-archivo), el Anexo 2 (tolerancia de "afines" en la coincidencia de
 título, la regresión del override vacío, el orden/paginación de la vista
-previa, la fecha siempre editable y la exportación a Word), y el Anexo 3
+previa, la fecha siempre editable y la exportación a Word), el Anexo 3
 (vinculación de proyectos por perfil, agrupación correcta del certificado por
-técnico, filas sin proyectos vinculados, y la exportación a Word). Se ejecuta
-automáticamente en GitHub Actions (`.github/workflows/e2e.yml`) en cada push
-a `main` y en cada pull request.
+técnico, filas sin proyectos vinculados, y la exportación a Word), las tres
+alertas del proceso y el resumen consolidado (fechas, equipo, requisitos y
+entregables), y una regresión de impresión para cada vista previa (Anexo 2,
+Anexo 3 y Resumen) que verifica que "Descargar PDF" no recorta el documento
+al recuadro del modal de vista previa. Se ejecuta automáticamente en GitHub
+Actions (`.github/workflows/e2e.yml`) en cada push a `main` y en cada pull
+request.

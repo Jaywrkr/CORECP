@@ -16,6 +16,12 @@ Tu tarea: leer TODOS los documentos recibidos y producir UN SOLO resultado conso
 - La información relevante para completar dos anexos administrativos:
   - Anexo 2: Personal Técnico (Función, Nombre, Nivel de estudio, Titulación académica)
   - Anexo 3: Experiencia del Personal Técnico (Personal, Cliente - Fecha de Acta/Factura, Proyecto, Monto)
+- Tres alertas puntuales sobre obligaciones del oferente: si el pliego exige presentar un cronograma de implementación, qué código(s) CPC identifican el objeto de contratación (para verificar si aplica transferencia de tecnología nivel TT2), y si hay que entregar manuales de uso.
+
+Reglas para las alertas:
+- "codigosCpc": todos los códigos CPC (numéricos, típicamente de 7 a 11 dígitos) que el pliego use para identificar el/los bien(es) o servicio(s) contratados — busca términos como "Código CPC", "CPC N9", "Clasificador Central de Productos". Devuelve un arreglo vacío si el pliego no menciona ningún código CPC.
+- "cronograma": "requerido" es true si el pliego pide al OFERENTE (no a la entidad contratante) presentar un cronograma de implementación/ejecución del proyecto como parte de la oferta. "detalle" es una cita breve o paráfrasis del texto que lo exige, o "" si no se encontró.
+- "manuales": "requerido" es true si el pliego exige entregar manuales de uso/manejo del producto (en cualquier formato). "detalle" describe brevemente el formato exigido si se indica (ej. "físico y digital", "solo digital"), o "" si no se encontró o no especifica formato.
 
 Reglas para la identificación del proceso:
 - "cliente" es la entidad contratante (institución pública que convoca el proceso), en pocas palabras, ej: "ETAPA EP", "EERSSA", "Municipio de Cuenca". Si no se identifica con certeza, usa un nombre corto razonable a partir del texto o "" si es imposible determinarlo.
@@ -66,7 +72,12 @@ Responde EXCLUSIVAMENTE con un objeto JSON válido (sin markdown, sin texto adic
       "personal": "cargo o especialidad correspondiente al mismo perfil de anexo2Sugerido",
       "requisitoExperiencia": "texto sugerido del requisito de experiencia a cumplir, ej: 'Se deberá acreditar experiencia de haber participado como técnico en al menos un (1) proyecto, ejecutado en mínimo un (1) año, como especialista en...'"
     }
-  ]
+  ],
+  "alertas": {
+    "codigosCpc": ["código CPC tal como aparece en el documento"],
+    "cronograma": { "requerido": true, "detalle": "cita o paráfrasis breve del requisito, o \"\" si no aplica" },
+    "manuales": { "requerido": true, "detalle": "formato exigido si se indica, o \"\" si no aplica o no se especifica" }
+  }
 }
 
 Reglas de formato:
@@ -175,6 +186,15 @@ function normalizeResult(data: unknown): ExtractionResult {
 
   const toTrimmedString = (v: unknown): string => (typeof v === "string" ? v.trim() : "");
 
+  const alertasRaw = (obj.alertas ?? {}) as Record<string, unknown>;
+  const toAlerta = (v: unknown): { requerido: boolean; detalle: string } => {
+    const a = (v ?? {}) as Record<string, unknown>;
+    return {
+      requerido: a.requerido === true,
+      detalle: toTrimmedString(a.detalle),
+    };
+  };
+
   return {
     requisitos: {
       personal: dedupeStrings(toStringArray(req.personal)),
@@ -195,6 +215,11 @@ function normalizeResult(data: unknown): ExtractionResult {
     },
     anexo2Sugerido: dedupeAnexo2(anexo2),
     anexo3Sugerido: dedupeAnexo3(anexo3),
+    alertas: {
+      codigosCpc: dedupeStrings(toStringArray(alertasRaw.codigosCpc)),
+      cronograma: toAlerta(alertasRaw.cronograma),
+      manuales: toAlerta(alertasRaw.manuales),
+    },
   };
 }
 
