@@ -51,6 +51,50 @@ export interface AlertasProceso {
   manuales: AlertaDetectada;
 }
 
+// Información del proceso que no tiene que ver con personal técnico ni
+// experiencia (eso es exclusivamente Anexo 2/3) — presupuesto, plazos, forma
+// de pago, garantías, multas y las reglas de participación/calificación.
+// Es lo que arma el "Resumen del proceso": una vista de todo el proceso, no
+// solo de la parte de personal técnico.
+export interface InformacionGeneralProceso {
+  presupuestoReferencial: string;
+  plazoEjecucion: string;
+  formaDePago: string;
+  anticipo: string;
+  vigenciaOferta: string;
+  lugarEntrega: string;
+  modalidadContratacion: string;
+  garantias: string[];
+  multas: string;
+  requisitosHabilitantes: string[];
+  criteriosEvaluacion: string[];
+}
+
+// Un grupo temático de requisitos/aclaraciones técnicas clave (ej. "Procesadores",
+// "Marcas", "Configure To Order"), con la cita del pliego o acta de preguntas
+// y respuestas que lo sustenta, para que el oferente pueda verificarlo.
+export interface RequisitoClave {
+  titulo: string;
+  puntos: string[];
+  referencia: string;
+}
+
+// El "resumen ejecutivo y checklist de cumplimiento" de todo el proceso —
+// alcance, aclaraciones técnicas clave, infraestructura que ya tiene la
+// entidad (para no ofertarla de más), documentación a sustentar y un
+// checklist final. Es la columna vertebral del PDF de "Resumen del proceso".
+export interface ResumenEjecutivo {
+  objetivo: string;
+  entidadContratante: string;
+  alcanceEquipos: string[];
+  alcanceServicios: string[];
+  infraestructuraExistente: string[];
+  requisitosClave: RequisitoClave[];
+  documentacionRequerida: string[];
+  checklist: string[];
+  observaciones: string[];
+}
+
 export interface ExtractionResult {
   requisitos: RequisitosDetectados;
   fechasClave: FechasClave;
@@ -58,6 +102,8 @@ export interface ExtractionResult {
   anexo2Sugerido: Anexo2Fila[];
   anexo3Sugerido: Anexo3Fila[];
   alertas?: AlertasProceso;
+  informacionGeneral?: InformacionGeneralProceso;
+  resumenEjecutivo?: ResumenEjecutivo;
 }
 
 export type ExtractionStatus = "idle" | "uploading" | "extracting" | "done" | "error";

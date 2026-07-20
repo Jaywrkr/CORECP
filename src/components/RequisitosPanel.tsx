@@ -127,15 +127,7 @@ export default function RequisitosPanel({
     setExportingWordResumen(true);
     setExportErrorResumen(null);
     try {
-      const blob = await generarResumenDocx({
-        result,
-        numeroProceso,
-        nombreProyecto,
-        tecnicos,
-        proyectos,
-        asignaciones,
-        anexo3Proyectos,
-      });
+      const blob = await generarResumenDocx({ result, numeroProceso, nombreProyecto });
       descargarBlob(blob, "Resumen_del_Proceso.docx");
     } catch (err) {
       setExportErrorResumen(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
@@ -789,15 +781,7 @@ export default function RequisitosPanel({
                   {exportErrorResumen}
                 </p>
               )}
-              <ResumenPreview
-                result={result}
-                numeroProceso={numeroProceso}
-                nombreProyecto={nombreProyecto}
-                tecnicos={tecnicos}
-                proyectos={proyectos}
-                asignaciones={asignaciones}
-                anexo3Proyectos={anexo3Proyectos}
-              />
+              <ResumenPreview result={result} numeroProceso={numeroProceso} nombreProyecto={nombreProyecto} />
             </div>
           </div>
         </div>

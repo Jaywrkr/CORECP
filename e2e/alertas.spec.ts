@@ -30,7 +30,7 @@ test.describe("Alertas del proceso y resumen consolidado", () => {
     await expect(page.getByText("físico y digital")).toBeVisible();
   });
 
-  test("el resumen del proceso consolida fechas, equipo, requisitos y entregables", async ({ page }) => {
+  test("el resumen del proceso cubre todo el proceso: presupuesto, alcance, requisitos clave y checklist", async ({ page }) => {
     mockProcesosApi(page);
     mockTecnicosApi(page, [fixtureTecnico()]);
     mockProyectosApi(page, [fixtureProyecto()]);
@@ -44,12 +44,24 @@ test.describe("Alertas del proceso y resumen consolidado", () => {
     await page.getByRole("button", { name: "Resumen del proceso" }).click();
     await expect(page.locator("#resumen-print-area")).toBeVisible();
 
-    await expect(page.locator("#resumen-print-area").getByText("RESUMEN DEL PROCESO")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Fechas clave")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Equipo técnico propuesto")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Requerimientos detectados")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Entregables y obligaciones del oferente")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Especialista en Estructuras").first()).toBeVisible();
+    const area = page.locator("#resumen-print-area");
+    await expect(area.getByText("Resumen ejecutivo y checklist de cumplimiento")).toBeVisible();
+    await expect(area.getByText("Información general")).toBeVisible();
+    await expect(area.getByText("$85.255,00")).toBeVisible();
+    await expect(area.getByText("120 días").first()).toBeVisible();
+    await expect(area.getByText("Cronograma", { exact: true })).toBeVisible();
+    await expect(area.getByText("Alcance del proyecto")).toBeVisible();
+    await expect(area.getByText("Librería de cintas LTO-9")).toBeVisible();
+    await expect(area.getByText("Requisitos técnicos clave")).toBeVisible();
+    await expect(area.getByText("Procesadores")).toBeVisible();
+    await expect(area.getByText("Referencia: Pregunta 2")).toBeVisible();
+    await expect(area.getByText("Infraestructura existente")).toBeVisible();
+    await expect(area.getByText("Entregables y obligaciones del oferente")).toBeVisible();
+    await expect(area.getByText("Checklist de cumplimiento").first()).toBeVisible();
+    await expect(area.getByText("Observaciones importantes")).toBeVisible();
+
+    // No debe traer el detalle de personal técnico/experiencia — eso es del Anexo 2/3.
+    await expect(area.getByText("Equipo técnico propuesto")).toHaveCount(0);
   });
 
   test("Descargar Word del resumen genera un .docx descargable", async ({ page }) => {
