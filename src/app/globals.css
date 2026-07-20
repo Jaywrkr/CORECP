@@ -76,25 +76,83 @@ body {
   border-radius: 2px;
 }
 
-/* "Descargar PDF" en la vista previa del Anexo 2 usa window.print() — al
-   imprimir, solo se muestra el documento (#anexo2-print-area), sin la UI
-   de la app ni el resto de la página. */
+/* "Descargar PDF" en la vista previa del Anexo 2 o Anexo 3 usa window.print()
+   — al imprimir, solo se muestra el documento (#anexo2-print-area o
+   #anexo3-print-area), sin la UI de la app ni el resto de la página.
+
+   Ambas vistas previas viven dentro de un modal: un fondo `position: fixed;
+   inset: 0` que centra con flexbox, un panel con `max-height: 90vh` +
+   `overflow: hidden`, y un contenedor interno con `overflow: auto`. El
+   fondo fijo se deja intacto a propósito — es lo que ancla el área del
+   documento (`position: absolute`) a las dimensiones de la página en vez
+   de a la posición real del modal dentro del layout de dos columnas de
+   /analizar (si se vuelve `position: static`, el documento hereda el ancho
+   angosto de esa columna y aparece desplazado/recortado). Lo que sí hay que
+   neutralizar es todo lo que recorta o centra el contenido: el
+   `overflow: hidden` y el `max-height` del panel (si no, Chrome imprime solo
+   el recuadro visible del modal, dando páginas en blanco o cortadas), y el
+   centrado flexbox del fondo (si no, el documento queda encogido a su
+   ancho de contenido en vez de ocupar toda la página). */
 @media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
   body * {
     visibility: hidden;
   }
 
   #anexo2-print-area,
-  #anexo2-print-area * {
+  #anexo2-print-area *,
+  #anexo3-print-area,
+  #anexo3-print-area * {
     visibility: visible;
   }
 
-  #anexo2-print-area {
+  .print-modal-backdrop {
+    display: block !important;
+    padding: 0 !important;
+    background: none !important;
+  }
+
+  .print-modal-shell,
+  .print-modal-scroll {
+    display: block !important;
+    position: static !important;
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+    max-width: none !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: none !important;
+    border: none !important;
+  }
+
+  #anexo2-print-area,
+  #anexo2-print-area *,
+  #anexo3-print-area,
+  #anexo3-print-area * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  #anexo2-print-area,
+  #anexo3-print-area {
     position: absolute;
-    left: 0;
     top: 0;
+    left: 0;
     width: 100%;
     padding: 0;
+    margin: 0;
     border-radius: 0;
+    box-shadow: none;
   }
 }

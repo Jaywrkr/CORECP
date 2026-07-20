@@ -120,6 +120,40 @@ test.describe("Anexo 2 — asignación, coincidencia de título y vista previa",
     await expect(page.locator("#anexo2-print-area textarea")).toHaveCount(1);
   });
 
+  test("regresión: Descargar PDF no recorta el documento al recuadro del modal", async ({ page }) => {
+    // El modal de vista previa usa `position: fixed` + `overflow: auto` para
+    // mostrarse en pantalla. Si el CSS de impresión no neutraliza eso, Chrome
+    // recorta el PDF al recuadro visible del modal (~90vh, ancho angosto de
+    // la columna de /analizar) en vez de paginar el documento completo,
+    // dando una página en blanco o con el texto desplazado.
+    mockProcesosApi(page);
+    mockTecnicosApi(page, [fixtureTecnico()]);
+    await mockExtractApi(page);
+
+    await page.goto("/analizar");
+    await page.setInputFiles('input[type="file"]', SAMPLE_PDF);
+    await page.getByRole("button", { name: "Analizar" }).click();
+    await page.locator("table select").selectOption("t1");
+    await page.waitForTimeout(200);
+    await page.getByRole("button", { name: "Vista previa Anexo 2" }).click();
+    await expect(page.locator("#anexo2-print-area")).toBeVisible();
+
+    await page.emulateMedia({ media: "print" });
+
+    // El área del documento debe ocupar todo el ancho de la página, no el
+    // ancho angosto de la columna donde vive el modal en el layout normal.
+    const viewport = page.viewportSize();
+    const box = await page.locator("#anexo2-print-area").boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.width).toBeGreaterThan((viewport?.width ?? 0) * 0.9);
+
+    // La UI del modal (botones, encabezado) no debe imprimirse.
+    await expect(page.getByRole("heading", { name: "Vista previa — Anexo 2" })).toBeHidden();
+    await expect(page.getByRole("heading", { name: "ANEXO 2: PERSONAL TÉCNICO", exact: true })).toBeVisible();
+
+    await page.emulateMedia({ media: "screen" });
+  });
+
   test("Descargar Word genera un .docx descargable", async ({ page }) => {
     mockProcesosApi(page);
     mockTecnicosApi(page, [fixtureTecnico()]);

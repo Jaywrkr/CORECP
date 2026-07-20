@@ -400,16 +400,16 @@ export default function RequisitosPanel({
 
       {showPreview && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.75)" }}
           onClick={() => setShowPreview(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
+            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
             style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
           >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
               <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                 Vista previa — Anexo 2
               </h2>
@@ -449,9 +449,9 @@ export default function RequisitosPanel({
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
+            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
               {exportError && (
-                <p className="mb-3 text-xs" style={{ color: "var(--danger)" }}>
+                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
                   {exportError}
                 </p>
               )}
@@ -584,16 +584,16 @@ export default function RequisitosPanel({
 
       {showPreviewAnexo3 && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: "rgba(0,0,0,0.75)" }}
           onClick={() => setShowPreviewAnexo3(false)}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
+            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
             style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
           >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: "var(--border)" }}>
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
               <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
                 Vista previa — Anexo 3
               </h2>
@@ -633,9 +633,9 @@ export default function RequisitosPanel({
                 </button>
               </div>
             </div>
-            <div className="min-h-0 flex-1 overflow-auto p-4">
+            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
               {exportErrorAnexo3 && (
-                <p className="mb-3 text-xs" style={{ color: "var(--danger)" }}>
+                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
                   {exportErrorAnexo3}
                 </p>
               )}
