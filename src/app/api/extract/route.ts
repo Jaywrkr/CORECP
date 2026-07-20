@@ -369,6 +369,9 @@ async function callClaude(
   if (response.stop_reason === "refusal") {
     throw new Error("El modelo rechazó procesar estos documentos.");
   }
+  if (response.stop_reason === "max_tokens") {
+    throw new Error("La respuesta se cortó por longitud — el pliego es muy extenso para procesarlo de una vez.");
+  }
 
   const textBlock = response.content.find((b) => b.type === "text");
   if (!textBlock || textBlock.type !== "text") {
@@ -377,6 +380,38 @@ async function callClaude(
 
   return extractJson(textBlock.text);
 }
+
+const RESUMEN_VACIO: Pick<ExtractionResult, "alertas" | "informacionGeneral" | "resumenEjecutivo"> = {
+  alertas: {
+    codigosCpc: [],
+    cronograma: { requerido: false, detalle: "" },
+    manuales: { requerido: false, detalle: "" },
+  },
+  informacionGeneral: {
+    presupuestoReferencial: "",
+    plazoEjecucion: "",
+    formaDePago: "",
+    anticipo: "",
+    vigenciaOferta: "",
+    lugarEntrega: "",
+    modalidadContratacion: "",
+    garantias: [],
+    multas: "",
+    requisitosHabilitantes: [],
+    criteriosEvaluacion: [],
+  },
+  resumenEjecutivo: {
+    objetivo: "",
+    entidadContratante: "",
+    alcanceEquipos: [],
+    alcanceServicios: [],
+    infraestructuraExistente: [],
+    requisitosClave: [],
+    documentacionRequerida: [],
+    checklist: [],
+    observaciones: [],
+  },
+};
 
 export async function POST(req: NextRequest) {
   try {
@@ -458,27 +493,28 @@ export async function POST(req: NextRequest) {
       ? `Analiza los siguientes ${validDocuments.length} documentos de compras públicas y arma el resumen ejecutivo del proceso según las instrucciones.${truncNote}`
       : `Analiza el siguiente pliego de compras públicas y arma el resumen ejecutivo del proceso según las instrucciones.${truncNote}`;
 
-    let anexosRaw: unknown;
-    let resumenRaw: unknown;
-    try {
-      [anexosRaw, resumenRaw] = await Promise.all([
-        callClaude(client, SYSTEM_PROMPT_ANEXOS, instructionAnexos, documentBlocks, 4000),
-        callClaude(client, SYSTEM_PROMPT_RESUMEN, instructionResumen, documentBlocks, 4000),
-      ]);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Error desconocido";
+    // Las dos llamadas son independientes a propósito: el resumen ejecutivo
+    // (alertas/informacionGeneral/resumenEjecutivo) es una funcionalidad
+    // nueva y más propensa a fallar (respuesta más larga, más arreglos). Si
+    // falla, NO debe tumbar el análisis de personal técnico/Anexo 2/Anexo 3,
+    // que es lo esencial y ya funcionaba de forma confiable — el resumen
+    // simplemente queda vacío y el usuario puede reintentarlo por separado.
+    const [anexosSettled, resumenSettled] = await Promise.allSettled([
+      callClaude(client, SYSTEM_PROMPT_ANEXOS, instructionAnexos, documentBlocks, 8000),
+      callClaude(client, SYSTEM_PROMPT_RESUMEN, instructionResumen, documentBlocks, 8000),
+    ]);
+
+    if (anexosSettled.status === "rejected") {
+      const message = anexosSettled.reason instanceof Error ? anexosSettled.reason.message : "Error desconocido";
       return NextResponse.json(
         { error: `Error al comunicarse con la API de Claude: ${message}` },
         { status: 502 },
       );
     }
 
-    let result: ExtractionResult;
+    let anexosParte: ReturnType<typeof normalizeAnexos>;
     try {
-      result = {
-        ...normalizeAnexos(anexosRaw),
-        ...normalizeResumen(resumenRaw),
-      };
+      anexosParte = normalizeAnexos(anexosSettled.value);
     } catch {
       return NextResponse.json(
         { error: "La respuesta de la API no tiene la estructura esperada." },
@@ -486,6 +522,18 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    let resumenParte: ReturnType<typeof normalizeResumen> = RESUMEN_VACIO;
+    if (resumenSettled.status === "fulfilled") {
+      try {
+        resumenParte = normalizeResumen(resumenSettled.value);
+      } catch (err) {
+        console.error("Resumen ejecutivo con estructura inesperada (no bloqueante):", err);
+      }
+    } else {
+      console.error("Resumen ejecutivo falló (no bloqueante):", resumenSettled.reason);
+    }
+
+    const result: ExtractionResult = { ...anexosParte, ...resumenParte };
     return NextResponse.json(result);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Error desconocido";
