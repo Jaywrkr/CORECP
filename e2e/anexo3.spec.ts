@@ -50,6 +50,38 @@ test.describe("Anexo 3 — vinculación de proyectos (panel inline)", () => {
     await expect(page.getByText('Aún no hay proyectos en el roster')).toBeVisible();
   });
 
+  test("la tabla del Anexo 3 en la página principal se llena con el técnico del punto 2 y los datos del proyecto", async ({ page }) => {
+    mockProcesosApi(page);
+    mockTecnicosApi(page, [fixtureTecnico()]);
+    mockProyectosApi(page, [
+      fixtureProyecto({
+        cliente: "CNEL EP",
+        descripcionProyecto: "IMPLEMENTACIÓN DE SERVIDORES PARA CNEL EP.",
+        fechaActaEntrega: "2023-06-15",
+        monto: "$120.000",
+      }),
+    ]);
+    await mockExtractApi(page);
+
+    await page.goto("/analizar");
+    await page.setInputFiles('input[type="file"]', SAMPLE_PDF);
+    await page.getByRole("button", { name: "Analizar" }).click();
+    await expect(page.getByText("Tabla del Anexo 3", { exact: false })).toBeVisible({ timeout: 15_000 });
+
+    // Asignar el técnico en el punto 2 (Anexo 2) — la tabla del Anexo 3 debe
+    // reflejar ese nombre automáticamente.
+    await page.locator("table select").first().selectOption("t1");
+    // Vincular el proyecto con la casilla del perfil.
+    await page.getByTestId("anexo3-row-0").locator('label:has-text("CNEL EP")').click();
+
+    // La fila de datos (no la tarjeta de checkboxes) vive dentro de la tabla
+    // consolidada — verificamos que aparezcan técnico, cliente, proyecto y monto.
+    const tabla = page.locator("table").filter({ hasText: "IMPLEMENTACIÓN DE SERVIDORES PARA CNEL EP." });
+    await expect(tabla.getByText("Patricio Gavilanes")).toBeVisible();
+    await expect(tabla.getByText("$120.000")).toBeVisible();
+    await expect(tabla.getByText("2023-06-15", { exact: false })).toBeVisible();
+  });
+
   test("dos perfiles vinculan proyectos de forma independiente", async ({ page }) => {
     mockProcesosApi(page);
     mockTecnicosApi(page, [fixtureTecnico(), fixtureTecnico({ id: "t2", nombre: "Diego Rojas", cedula: "0103789780" })]);
