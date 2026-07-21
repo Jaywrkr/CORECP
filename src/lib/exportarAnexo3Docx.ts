@@ -10,7 +10,7 @@ import type {
 import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
 import { FIRMA_DEFAULT, resolverValor } from "./anexo2Shared";
-import { areaDesdeFuncion, bioTecnicoDefault, FIRMA_DEFAULT_ANEXO3, participacionTecnicoDefault } from "./anexo3Shared";
+import { areaDesdeFuncion, bioTecnicoDefault, FIRMA_DEFAULT_ANEXO3, participacionTecnicoDefault, requisitoGrisDePerfil, type RequisitoGris } from "./anexo3Shared";
 import { celdaDatoDocx, celdaEncabezadoDocx, fetchComoBuffer, parrafoJustificadoDocx, tituloSeccionCentradoDocx, tituloSeccionDocx } from "./docxHelpers";
 
 const AZUL_TITULO = "1F4E79";
@@ -37,13 +37,19 @@ interface FilaConProyecto {
   tecnico?: Tecnico;
 }
 
-function filaRequisito(texto: string): TableRow {
+function filaRequisito(requisito: RequisitoGris): TableRow {
+  const parrafos = [
+    new Paragraph({ children: [new TextRun({ text: requisito.titulo, size: 16, bold: true })] }),
+  ];
+  if (requisito.requisito) {
+    parrafos.push(new Paragraph({ children: [new TextRun({ text: requisito.requisito, size: 16 })] }));
+  }
   return new TableRow({
     children: [
       new TableCell({
         columnSpan: 4,
         shading: { fill: GRIS_REQUISITO, type: ShadingType.CLEAR, color: "auto" },
-        children: [new Paragraph({ children: [new TextRun({ text: texto, size: 16 })] })],
+        children: parrafos,
       }),
     ],
   });
@@ -51,7 +57,7 @@ function filaRequisito(texto: string): TableRow {
 
 function filasDePerfil(
   rowIndex: number,
-  requisito: string,
+  requisito: RequisitoGris,
   filas: FilaConProyecto[],
   overrides: Anexo3OverridesMap,
 ): TableRow[] {
@@ -132,8 +138,13 @@ export async function generarAnexo3Docx({
   const encabezado = FIRMA_DEFAULT;
   const logoBuffer = await fetchComoBuffer("/coresolutions-logo.png");
 
-  const requisitoTexto = (rowIndex: number) =>
-    anexo3Filas[rowIndex]?.requisitoExperiencia || anexo2Filas[rowIndex]?.funcion || "";
+  const requisitoGris = (rowIndex: number) =>
+    requisitoGrisDePerfil(
+      rowIndex,
+      anexo2Filas[rowIndex]?.funcion,
+      anexo3Filas[rowIndex]?.personal,
+      anexo3Filas[rowIndex]?.requisitoExperiencia,
+    );
 
   const filasConProyecto: FilaConProyecto[] = [];
   anexo2Filas.forEach((_, rowIndex) => {
@@ -165,7 +176,7 @@ export async function generarAnexo3Docx({
     rows: [
       encabezadoTabla(),
       ...anexo2Filas.flatMap((_, rowIndex) =>
-        filasDePerfil(rowIndex, requisitoTexto(rowIndex), filasConProyecto.filter((f) => f.rowIndex === rowIndex), overrides),
+        filasDePerfil(rowIndex, requisitoGris(rowIndex), filasConProyecto.filter((f) => f.rowIndex === rowIndex), overrides),
       ),
     ],
   });
@@ -200,7 +211,7 @@ export async function generarAnexo3Docx({
         rows: [
           encabezadoTabla(),
           ...rowIndicesTecnico.flatMap((rowIndex) =>
-            filasDePerfil(rowIndex, requisitoTexto(rowIndex), filasTecnico.filter((f) => f.rowIndex === rowIndex), overrides),
+            filasDePerfil(rowIndex, requisitoGris(rowIndex), filasTecnico.filter((f) => f.rowIndex === rowIndex), overrides),
           ),
         ],
       }),

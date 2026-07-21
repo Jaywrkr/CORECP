@@ -6,6 +6,7 @@ import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
 import { tituloCoincide } from "@/lib/tituloCoincide";
 import { buscarCoincidenciaTT2 } from "@/lib/cpcTT2";
+import { requisitoGrisDePerfil } from "@/lib/anexo3Shared";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -502,11 +503,16 @@ function Anexo3TablaConsolidada({
   asignaciones: Record<number, string>;
   anexo3Proyectos: Anexo3ProyectosMap;
 }) {
-  // El texto de la fila gris (título del requisito por perfil) sale del pliego
-  // — a veces ya viene numerado ("1.1. Especialista en...") desde la IA. Se usa
-  // el requisito de experiencia y, si no hay, la función del Anexo 2.
-  const requisitoTexto = (i: number) =>
-    anexo3Sugerido[i]?.requisitoExperiencia || anexo2Sugerido[i]?.funcion || `Perfil ${i + 1}`;
+  // La fila gris replica el formato del pliego: un título numerado con el
+  // nombre del perfil ("1.1.  Especialista técnico en...") y, debajo, el
+  // párrafo del requisito de experiencia ("Se deberá acreditar...").
+  const requisitoGris = (i: number) =>
+    requisitoGrisDePerfil(
+      i,
+      anexo2Sugerido[i]?.funcion,
+      anexo3Sugerido[i]?.personal,
+      anexo3Sugerido[i]?.requisitoExperiencia,
+    );
 
   return (
     <div className="overflow-x-auto rounded-md border" style={{ borderColor: "var(--border)" }}>
@@ -541,14 +547,26 @@ function Anexo3TablaConsolidada({
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-3 py-2 text-[13px] font-semibold"
+                    className="px-3 py-2 text-[13px]"
                     style={{
                       background: "var(--bg-elevated)",
                       color: "var(--text-primary)",
                       borderTop: "1px solid var(--border)",
                     }}
                   >
-                    {requisitoTexto(i)}
+                    {(() => {
+                      const { titulo, requisito } = requisitoGris(i);
+                      return (
+                        <>
+                          <span className="font-semibold">{titulo}</span>
+                          {requisito ? (
+                            <span className="mt-1 block font-normal" style={{ color: "var(--text-secondary)" }}>
+                              {requisito}
+                            </span>
+                          ) : null}
+                        </>
+                      );
+                    })()}
                   </td>
                 </tr>
                 {filas.length === 0 ? (

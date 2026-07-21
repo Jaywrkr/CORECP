@@ -22,6 +22,44 @@ function formatFechaDesdeISO(iso: string): string {
   return formatFechaLarga(new Date(Number(y), Number(m) - 1, Number(d)));
 }
 
+// La fila gris de la Tabla 3 tiene dos partes, como en el pliego: un título
+// numerado con el nombre del perfil ("1.1.  Especialista técnico en...") y,
+// debajo, el párrafo del requisito de experiencia ("Se deberá acreditar...").
+export interface RequisitoGris {
+  titulo: string;
+  requisito: string;
+}
+
+function normalizarComparacion(texto: string): string {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Arma las dos líneas de la fila gris respetando el formato del pliego. El
+// título sale del nombre del perfil (personal / función del Anexo 2) y se
+// numera "N.1." salvo que la IA ya lo haya numerado. El párrafo es el
+// requisito de experiencia; se omite si está vacío o si solo repite el título
+// (acoplando cuando algo no viene en el pliego).
+export function requisitoGrisDePerfil(
+  index: number,
+  funcion: string | undefined,
+  personal: string | undefined,
+  requisitoExperiencia: string | undefined,
+): RequisitoGris {
+  const nombrePerfil = (personal?.trim() || funcion?.trim() || `Perfil ${index + 1}`).trim();
+  const yaNumerado = /^\d+(\.\d+)*\.?\s/.test(nombrePerfil);
+  const titulo = yaNumerado ? nombrePerfil : `${index + 1}.1.   ${nombrePerfil}`;
+
+  const req = (requisitoExperiencia ?? "").trim();
+  const requisito = req && normalizarComparacion(req) !== normalizarComparacion(nombrePerfil) ? req : "";
+
+  return { titulo, requisito };
+}
+
 // A partir de "Especialista técnico en servidores IBM Power" devuelve
 // "servidores IBM Power" para componer la frase "...instalación y
 // configuración de {área}." del certificado de cada técnico.

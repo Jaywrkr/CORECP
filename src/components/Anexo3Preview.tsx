@@ -14,7 +14,7 @@ import type {
 import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
 import { AZUL_BORDE, AZUL_TITULO, FIRMA_DEFAULT, FONT_FAMILY, NAVY_TABLA, resolverValor } from "@/lib/anexo2Shared";
-import { areaDesdeFuncion, bioTecnicoDefault, FIRMA_DEFAULT_ANEXO3, participacionTecnicoDefault } from "@/lib/anexo3Shared";
+import { areaDesdeFuncion, bioTecnicoDefault, FIRMA_DEFAULT_ANEXO3, participacionTecnicoDefault, requisitoGrisDePerfil, type RequisitoGris } from "@/lib/anexo3Shared";
 
 interface Anexo3PreviewProps {
   anexo2Filas: Anexo2Fila[];
@@ -72,8 +72,13 @@ export default function Anexo3Preview({
   const f = { ...FIRMA_DEFAULT_ANEXO3, ...firma };
   const encabezado = FIRMA_DEFAULT; // letterhead reuses the same company header as Anexo 2
 
-  const requisitoTexto = (rowIndex: number) =>
-    anexo3Filas[rowIndex]?.requisitoExperiencia || anexo2Filas[rowIndex]?.funcion || "";
+  const requisitoGris = (rowIndex: number) =>
+    requisitoGrisDePerfil(
+      rowIndex,
+      anexo2Filas[rowIndex]?.funcion,
+      anexo3Filas[rowIndex]?.personal,
+      anexo3Filas[rowIndex]?.requisitoExperiencia,
+    );
 
   const filasConProyecto: FilaConProyecto[] = [];
   anexo2Filas.forEach((_, rowIndex) => {
@@ -147,7 +152,7 @@ export default function Anexo3Preview({
               <TablaFilasDePerfil
                 key={rowIndex}
                 rowIndex={rowIndex}
-                requisito={requisitoTexto(rowIndex)}
+                requisito={requisitoGris(rowIndex)}
                 filas={filasConProyecto.filter((f) => f.rowIndex === rowIndex)}
                 overrides={overrides}
                 editable={editable}
@@ -215,7 +220,7 @@ export default function Anexo3Preview({
                     <TablaFilasDePerfil
                       key={rowIndex}
                       rowIndex={rowIndex}
-                      requisito={requisitoTexto(rowIndex)}
+                      requisito={requisitoGris(rowIndex)}
                       filas={filasTecnico.filter((f) => f.rowIndex === rowIndex)}
                       overrides={overrides}
                       editable={editable}
@@ -313,7 +318,7 @@ function TablaFilasDePerfil({
   onOverrideChange,
 }: {
   rowIndex: number;
-  requisito: string;
+  requisito: RequisitoGris;
   filas: FilaConProyecto[];
   overrides: Anexo3OverridesMap;
   editable: boolean;
@@ -323,7 +328,8 @@ function TablaFilasDePerfil({
     <>
       <tr>
         <td colSpan={4} className="border px-2 py-1.5" style={{ background: GRIS_REQUISITO, borderColor: "#000" }}>
-          {requisito}
+          <div className="font-bold">{requisito.titulo}</div>
+          {requisito.requisito ? <div className="mt-1">{requisito.requisito}</div> : null}
         </td>
       </tr>
       {filas.length === 0 ? (
