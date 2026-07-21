@@ -15,7 +15,7 @@ test.describe("Flujo de análisis manual", () => {
     await expect(page.getByRole("button", { name: "Analizar" })).toBeVisible();
 
     await page.getByRole("button", { name: "Analizar" }).click();
-    await expect(page.getByRole("button", { name: "Vista previa Anexo 2" })).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText("Campos sugeridos — Anexo 2")).toBeVisible({ timeout: 15_000 });
   });
 
   test("un proceso ya analizado se carga desde caché sin volver a llamar a la IA", async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe("Flujo de análisis manual", () => {
     expect(extractCalls).toBe(1);
   });
 
-  test("cada proceso guarda su propio resumen, Anexo 2 y Anexo 3 — no se mezclan entre procesos", async ({ page }) => {
+  test("cada proceso guarda su propio Anexo 2 y Anexo 3 — no se mezclan entre procesos", async ({ page }) => {
     mockProcesosApi(page);
     mockTecnicosApi(page);
 
@@ -72,6 +72,10 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByPlaceholder("ej. SIE-EERSSA-2026-023").fill("PROCESO-A");
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText("Guardado")).toBeVisible({ timeout: 15_000 });
+    // Scoped to the Anexo 2 table — the raw PDF preview text also contains
+    // "Especialista en Estructuras" from the fixture, which would otherwise
+    // make this assertion pass/fail for the wrong reason.
+    await expect(page.locator("table").getByText("Especialista en Estructuras")).toBeVisible();
 
     // Proceso B: mismo flujo, con datos totalmente distintos.
     nextResult = resultB;
@@ -80,12 +84,8 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByPlaceholder("ej. SIE-EERSSA-2026-023").fill("PROCESO-B");
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText("Guardado")).toBeVisible({ timeout: 15_000 });
-
-    await page.getByRole("button", { name: "Resumen del proceso" }).click();
-    await expect(page.locator("#resumen-print-area").getByText("$12.000,00")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Ínfima Cuantía")).toBeVisible();
-    await page.getByRole("button", { name: "Cerrar" }).click();
-    await expect(page.getByText("Especialista en Redes").first()).toBeVisible();
+    await expect(page.locator("table").getByText("Especialista en Redes")).toBeVisible();
+    await expect(page.locator("table").getByText("Especialista en Estructuras")).toHaveCount(0);
 
     // Reabrir Proceso A desde caché debe traer SU propia data, sin rastro de B.
     await page.getByRole("button", { name: "Empezar de nuevo" }).click();
@@ -94,13 +94,8 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText(/Cargado desde caché/)).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.getByText("Especialista en Estructuras").first()).toBeVisible();
-    await expect(page.getByText("Especialista en Redes")).toHaveCount(0);
-
-    await page.getByRole("button", { name: "Resumen del proceso" }).click();
-    await expect(page.locator("#resumen-print-area").getByText("$85.255,00")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("Subasta Inversa Electrónica")).toBeVisible();
-    await expect(page.locator("#resumen-print-area").getByText("$12.000,00")).toHaveCount(0);
+    await expect(page.locator("table").getByText("Especialista en Estructuras")).toBeVisible();
+    await expect(page.locator("table").getByText("Especialista en Redes")).toHaveCount(0);
   });
 
   test('"Volver" guarda el análisis pendiente antes de salir', async ({ page }) => {

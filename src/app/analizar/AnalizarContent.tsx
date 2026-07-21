@@ -13,13 +13,10 @@ import { detectProcessCode } from "@/lib/detectProcessCode";
 import { generarNombreProyecto } from "@/lib/generarNombreProyecto";
 import type {
   Anexo2Firma,
-  Anexo2Overrides,
   Anexo2OverridesMap,
   Anexo3Firma,
-  Anexo3FilaOverride,
   Anexo3OverridesMap,
   Anexo3ProyectosMap,
-  Anexo3TecnicoOverride,
   Anexo3TecnicoOverridesMap,
   ExtractionResult,
   ExtractionStatus,
@@ -79,12 +76,7 @@ export default function AnalizarContent() {
   const [showProyectos, setShowProyectos] = useState(false);
   const [asignaciones, setAsignaciones] = useState<Record<number, string>>({});
 
-  const [anexo2Overrides, setAnexo2Overrides] = useState<Anexo2OverridesMap>({});
-  const [anexo2Firma, setAnexo2Firma] = useState<Anexo2Firma>({});
   const [anexo3Proyectos, setAnexo3Proyectos] = useState<Anexo3ProyectosMap>({});
-  const [anexo3Overrides, setAnexo3Overrides] = useState<Anexo3OverridesMap>({});
-  const [anexo3TecnicoOverrides, setAnexo3TecnicoOverrides] = useState<Anexo3TecnicoOverridesMap>({});
-  const [anexo3Firma, setAnexo3Firma] = useState<Anexo3Firma>({});
 
   const [numeroProceso, setNumeroProceso] = useState(() => numeroFromUrl ?? "");
   const [nombreProyecto, setNombreProyecto] = useState<string | null>(null);
@@ -137,12 +129,7 @@ export default function AnalizarContent() {
         setResult(data.proceso.result);
         setFromCache(true);
         setCacheUpdatedAt(data.proceso.actualizadoEn);
-        setAnexo2Overrides(extras.anexo2Overrides);
-        setAnexo2Firma(extras.anexo2Firma);
         setAnexo3Proyectos(extras.anexo3Proyectos);
-        setAnexo3Overrides(extras.anexo3Overrides);
-        setAnexo3TecnicoOverrides(extras.anexo3TecnicoOverrides);
-        setAnexo3Firma(extras.anexo3Firma);
         setSaveState("saved");
         setStatus("done");
       })
@@ -204,12 +191,7 @@ export default function AnalizarContent() {
     setProgressLabel(null);
     setAsignaciones({});
     extrasRef.current = EXTRAS_VACIAS;
-    setAnexo2Overrides({});
-    setAnexo2Firma({});
     setAnexo3Proyectos({});
-    setAnexo3Overrides({});
-    setAnexo3TecnicoOverrides({});
-    setAnexo3Firma({});
     setFromCache(false);
     setCacheUpdatedAt(null);
     setNombreProyecto(null);
@@ -226,12 +208,7 @@ export default function AnalizarContent() {
       setResult(null);
       setAsignaciones({});
       extrasRef.current = EXTRAS_VACIAS;
-      setAnexo2Overrides({});
-      setAnexo2Firma({});
       setAnexo3Proyectos({});
-      setAnexo3Overrides({});
-      setAnexo3TecnicoOverrides({});
-      setAnexo3Firma({});
       setFromCache(false);
       setCacheUpdatedAt(null);
       setNombreProyecto(null);
@@ -298,12 +275,7 @@ export default function AnalizarContent() {
               setFromCache(true);
               setCacheUpdatedAt(cacheData.proceso.actualizadoEn);
               setNombreProyecto(cacheData.proceso.nombreProyecto);
-              setAnexo2Overrides(extras.anexo2Overrides);
-              setAnexo2Firma(extras.anexo2Firma);
               setAnexo3Proyectos(extras.anexo3Proyectos);
-              setAnexo3Overrides(extras.anexo3Overrides);
-              setAnexo3TecnicoOverrides(extras.anexo3TecnicoOverrides);
-              setAnexo3Firma(extras.anexo3Firma);
               setSaveState("saved");
               lastAnalysisRef.current = {
                 cacheKey: cacheData.proceso.numeroProceso,
@@ -416,36 +388,6 @@ export default function AnalizarContent() {
     }
   }, [result, guardarResultado]);
 
-  const handleAnexo2OverrideChange = useCallback(
-    (rowIndex: number, field: keyof Anexo2Overrides, value: string) => {
-      setAnexo2Overrides((prev) => {
-        const next = { ...prev, [rowIndex]: { ...prev[rowIndex], [field]: value } };
-        if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
-            anexo2Overrides: next,
-          });
-        }
-        return next;
-      });
-    },
-    [result, guardarResultado],
-  );
-
-  const handleAnexo2FirmaChange = useCallback(
-    (field: keyof Anexo2Firma, value: string) => {
-      setAnexo2Firma((prev) => {
-        const next = { ...prev, [field]: value };
-        if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
-            anexo2Firma: next,
-          });
-        }
-        return next;
-      });
-    },
-    [result, guardarResultado],
-  );
-
   const handleAnexo3ProyectosChange = useCallback(
     (rowIndex: number, proyectoIds: string[]) => {
       setAnexo3Proyectos((prev) => {
@@ -453,52 +395,6 @@ export default function AnalizarContent() {
         if (result && lastAnalysisRef.current) {
           void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
             anexo3Proyectos: next,
-          });
-        }
-        return next;
-      });
-    },
-    [result, guardarResultado],
-  );
-
-  const handleAnexo3OverrideChange = useCallback(
-    (rowIndex: number, proyectoId: string, field: keyof Anexo3FilaOverride, value: string) => {
-      setAnexo3Overrides((prev) => {
-        const key = `${rowIndex}:${proyectoId}`;
-        const next = { ...prev, [key]: { ...prev[key], [field]: value } };
-        if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
-            anexo3Overrides: next,
-          });
-        }
-        return next;
-      });
-    },
-    [result, guardarResultado],
-  );
-
-  const handleAnexo3TecnicoOverrideChange = useCallback(
-    (tecnicoId: string, field: keyof Anexo3TecnicoOverride, value: string) => {
-      setAnexo3TecnicoOverrides((prev) => {
-        const next = { ...prev, [tecnicoId]: { ...prev[tecnicoId], [field]: value } };
-        if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
-            anexo3TecnicoOverrides: next,
-          });
-        }
-        return next;
-      });
-    },
-    [result, guardarResultado],
-  );
-
-  const handleAnexo3FirmaChange = useCallback(
-    (field: keyof Anexo3Firma, value: string) => {
-      setAnexo3Firma((prev) => {
-        const next = { ...prev, [field]: value };
-        if (result && lastAnalysisRef.current) {
-          void guardarResultado(lastAnalysisRef.current.cacheKey, result, lastAnalysisRef.current.documentos, {
-            anexo3Firma: next,
           });
         }
         return next;
@@ -727,24 +623,12 @@ export default function AnalizarContent() {
             onRetry={handleRetry}
             documentCount={documents.length}
             progressLabel={progressLabel}
-            numeroProceso={numeroProceso}
-            nombreProyecto={nombreProyecto}
             tecnicos={tecnicos}
             proyectos={proyectos}
             asignaciones={asignaciones}
             onAssignTecnico={handleAssignTecnico}
-            anexo2Overrides={anexo2Overrides}
-            onAnexo2OverrideChange={handleAnexo2OverrideChange}
-            anexo2Firma={anexo2Firma}
-            onAnexo2FirmaChange={handleAnexo2FirmaChange}
             anexo3Proyectos={anexo3Proyectos}
             onAnexo3ProyectosChange={handleAnexo3ProyectosChange}
-            anexo3Overrides={anexo3Overrides}
-            onAnexo3OverrideChange={handleAnexo3OverrideChange}
-            anexo3TecnicoOverrides={anexo3TecnicoOverrides}
-            onAnexo3TecnicoOverrideChange={handleAnexo3TecnicoOverrideChange}
-            anexo3Firma={anexo3Firma}
-            onAnexo3FirmaChange={handleAnexo3FirmaChange}
           />
         </section>
       </main>

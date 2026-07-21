@@ -1,28 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type {
-  Anexo2Firma,
-  Anexo2Overrides,
-  Anexo2OverridesMap,
-  Anexo3Firma,
-  Anexo3FilaOverride,
-  Anexo3OverridesMap,
-  Anexo3ProyectosMap,
-  Anexo3TecnicoOverride,
-  Anexo3TecnicoOverridesMap,
-  ExtractionResult,
-  ExtractionStatus,
-} from "@/types/extraction";
+import type { Anexo3ProyectosMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
-import Anexo2Preview from "./Anexo2Preview";
-import Anexo3Preview from "./Anexo3Preview";
-import ResumenPreview from "./ResumenPreview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
-import { descargarBlob, generarAnexo2Docx } from "@/lib/exportarAnexo2Docx";
-import { generarAnexo3Docx } from "@/lib/exportarAnexo3Docx";
-import { generarResumenDocx } from "@/lib/exportarResumenDocx";
 import { buscarCoincidenciaTT2 } from "@/lib/cpcTT2";
 
 interface RequisitosPanelProps {
@@ -32,24 +13,12 @@ interface RequisitosPanelProps {
   onRetry?: () => void;
   documentCount?: number;
   progressLabel?: string | null;
-  numeroProceso?: string;
-  nombreProyecto?: string | null;
   tecnicos?: Tecnico[];
   proyectos?: Proyecto[];
   asignaciones?: Record<number, string>;
   onAssignTecnico?: (rowIndex: number, tecnicoId: string) => void;
-  anexo2Overrides?: Anexo2OverridesMap;
-  onAnexo2OverrideChange?: (rowIndex: number, field: keyof Anexo2Overrides, value: string) => void;
-  anexo2Firma?: Anexo2Firma;
-  onAnexo2FirmaChange?: (field: keyof Anexo2Firma, value: string) => void;
   anexo3Proyectos?: Anexo3ProyectosMap;
   onAnexo3ProyectosChange?: (rowIndex: number, proyectoIds: string[]) => void;
-  anexo3Overrides?: Anexo3OverridesMap;
-  onAnexo3OverrideChange?: (rowIndex: number, proyectoId: string, field: keyof Anexo3FilaOverride, value: string) => void;
-  anexo3TecnicoOverrides?: Anexo3TecnicoOverridesMap;
-  onAnexo3TecnicoOverrideChange?: (tecnicoId: string, field: keyof Anexo3TecnicoOverride, value: string) => void;
-  anexo3Firma?: Anexo3Firma;
-  onAnexo3FirmaChange?: (field: keyof Anexo3Firma, value: string) => void;
 }
 
 const CATEGORY_LABELS: { key: keyof ExtractionResult["requisitos"]; label: string }[] = [
@@ -87,99 +56,13 @@ export default function RequisitosPanel({
   onRetry,
   documentCount = 0,
   progressLabel,
-  numeroProceso,
-  nombreProyecto,
   tecnicos = [],
   proyectos = [],
   asignaciones = {},
   onAssignTecnico,
-  anexo2Overrides = {},
-  onAnexo2OverrideChange,
-  anexo2Firma = {},
-  onAnexo2FirmaChange,
   anexo3Proyectos = {},
   onAnexo3ProyectosChange,
-  anexo3Overrides = {},
-  onAnexo3OverrideChange,
-  anexo3TecnicoOverrides = {},
-  onAnexo3TecnicoOverrideChange,
-  anexo3Firma = {},
-  onAnexo3FirmaChange,
 }: RequisitosPanelProps) {
-  const [showPreview, setShowPreview] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [exportingWord, setExportingWord] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
-
-  const [showPreviewAnexo3, setShowPreviewAnexo3] = useState(false);
-  const [editModeAnexo3, setEditModeAnexo3] = useState(false);
-  const [exportingWordAnexo3, setExportingWordAnexo3] = useState(false);
-  const [exportErrorAnexo3, setExportErrorAnexo3] = useState<string | null>(null);
-
-  const [showResumen, setShowResumen] = useState(false);
-  const [exportingWordResumen, setExportingWordResumen] = useState(false);
-  const [exportErrorResumen, setExportErrorResumen] = useState<string | null>(null);
-
-  const handleDescargarPdf = () => window.print();
-
-  const handleDescargarWordResumen = async () => {
-    if (!result) return;
-    setExportingWordResumen(true);
-    setExportErrorResumen(null);
-    try {
-      const blob = await generarResumenDocx({ result, numeroProceso, nombreProyecto });
-      descargarBlob(blob, "Resumen_del_Proceso.docx");
-    } catch (err) {
-      setExportErrorResumen(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
-    } finally {
-      setExportingWordResumen(false);
-    }
-  };
-
-  const handleDescargarWord = async () => {
-    if (!result) return;
-    setExportingWord(true);
-    setExportError(null);
-    try {
-      const blob = await generarAnexo2Docx({
-        filas: result.anexo2Sugerido,
-        tecnicos,
-        asignaciones,
-        overrides: anexo2Overrides,
-        firma: anexo2Firma,
-      });
-      descargarBlob(blob, "Anexo_2_Personal_Tecnico.docx");
-    } catch (err) {
-      setExportError(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
-    } finally {
-      setExportingWord(false);
-    }
-  };
-
-  const handleDescargarWordAnexo3 = async () => {
-    if (!result) return;
-    setExportingWordAnexo3(true);
-    setExportErrorAnexo3(null);
-    try {
-      const blob = await generarAnexo3Docx({
-        anexo2Filas: result.anexo2Sugerido,
-        anexo3Filas: result.anexo3Sugerido,
-        tecnicos,
-        proyectos,
-        asignaciones,
-        proyectosPorFila: anexo3Proyectos,
-        overrides: anexo3Overrides,
-        tecnicoOverrides: anexo3TecnicoOverrides,
-        firma: anexo3Firma,
-      });
-      descargarBlob(blob, "Anexo_3_Experiencia_Personal_Tecnico.docx");
-    } catch (err) {
-      setExportErrorAnexo3(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
-    } finally {
-      setExportingWordAnexo3(false);
-    }
-  };
-
   if (status === "idle") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
@@ -261,16 +144,6 @@ export default function RequisitosPanel({
           se combinó en una sola vista.
         </p>
       )}
-
-      <div>
-        <button
-          onClick={() => setShowResumen(true)}
-          className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
-          style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-        >
-          Resumen del proceso
-        </button>
-      </div>
 
       {alertas && (
         <section
@@ -382,15 +255,6 @@ export default function RequisitosPanel({
               Campos sugeridos — Anexo 2: Personal Técnico
             </h1>
           </div>
-          {anexo2Sugerido.length > 0 && (
-            <button
-              onClick={() => setShowPreview(true)}
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-            >
-              Vista previa Anexo 2
-            </button>
-          )}
         </div>
 
         {anexo2Sugerido.length === 0 ? (
@@ -468,83 +332,6 @@ export default function RequisitosPanel({
         )}
       </section>
 
-      {showPreview && (
-        <div
-          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.75)" }}
-          onClick={() => setShowPreview(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
-            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                Vista previa — Anexo 2
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDescargarPdf}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  Descargar PDF
-                </button>
-                <button
-                  onClick={handleDescargarWord}
-                  disabled={exportingWord}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  {exportingWord ? "Generando…" : "Descargar Word"}
-                </button>
-                <button
-                  onClick={() => setEditMode((v) => !v)}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{
-                    borderColor: editMode ? "var(--accent)" : "var(--border)",
-                    color: editMode ? "var(--accent-hover)" : "var(--text-secondary)",
-                  }}
-                >
-                  {editMode ? "Terminar edición" : "Editar todo"}
-                </button>
-                <button
-                  onClick={() => setShowPreview(false)}
-                  aria-label="Cerrar"
-                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
-                  style={{ color: "var(--text-tertiary)" }}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
-              {exportError && (
-                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
-                  {exportError}
-                </p>
-              )}
-              <Anexo2Preview
-                filas={anexo2Sugerido}
-                tecnicos={tecnicos}
-                asignaciones={asignaciones}
-                overrides={anexo2Overrides}
-                firma={anexo2Firma}
-                editable={editMode}
-                onOverrideChange={onAnexo2OverrideChange}
-                onFirmaChange={onAnexo2FirmaChange}
-              />
-              {editMode && (
-                <p className="mt-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                  Los cambios se guardan automáticamente al salir de cada campo.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       <hr style={{ borderColor: "var(--border)" }} />
 
       {/* Bloque C: Anexo 3 */}
@@ -561,15 +348,6 @@ export default function RequisitosPanel({
               Campos sugeridos — Anexo 3: Experiencia del Personal Técnico
             </h1>
           </div>
-          {anexo3Sugerido.length > 0 && (
-            <button
-              onClick={() => setShowPreviewAnexo3(true)}
-              className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-              style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-            >
-              Vista previa Anexo 3
-            </button>
-          )}
         </div>
 
         {anexo3Sugerido.length === 0 ? (
@@ -652,140 +430,6 @@ export default function RequisitosPanel({
         )}
       </section>
 
-      {showPreviewAnexo3 && (
-        <div
-          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.75)" }}
-          onClick={() => setShowPreviewAnexo3(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
-            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                Vista previa — Anexo 3
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDescargarPdf}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  Descargar PDF
-                </button>
-                <button
-                  onClick={handleDescargarWordAnexo3}
-                  disabled={exportingWordAnexo3}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  {exportingWordAnexo3 ? "Generando…" : "Descargar Word"}
-                </button>
-                <button
-                  onClick={() => setEditModeAnexo3((v) => !v)}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{
-                    borderColor: editModeAnexo3 ? "var(--accent)" : "var(--border)",
-                    color: editModeAnexo3 ? "var(--accent-hover)" : "var(--text-secondary)",
-                  }}
-                >
-                  {editModeAnexo3 ? "Terminar edición" : "Editar todo"}
-                </button>
-                <button
-                  onClick={() => setShowPreviewAnexo3(false)}
-                  aria-label="Cerrar"
-                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
-                  style={{ color: "var(--text-tertiary)" }}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
-              {exportErrorAnexo3 && (
-                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
-                  {exportErrorAnexo3}
-                </p>
-              )}
-              <Anexo3Preview
-                anexo2Filas={anexo2Sugerido}
-                anexo3Filas={anexo3Sugerido}
-                tecnicos={tecnicos}
-                proyectos={proyectos}
-                asignaciones={asignaciones}
-                proyectosPorFila={anexo3Proyectos}
-                overrides={anexo3Overrides}
-                tecnicoOverrides={anexo3TecnicoOverrides}
-                firma={anexo3Firma}
-                editable={editModeAnexo3}
-                onOverrideChange={onAnexo3OverrideChange}
-                onTecnicoOverrideChange={onAnexo3TecnicoOverrideChange}
-                onFirmaChange={onAnexo3FirmaChange}
-              />
-              {editModeAnexo3 && (
-                <p className="mt-3 text-xs" style={{ color: "var(--text-tertiary)" }}>
-                  Los cambios se guardan automáticamente al salir de cada campo.
-                </p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {showResumen && (
-        <div
-          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: "rgba(0,0,0,0.75)" }}
-          onClick={() => setShowResumen(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
-            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
-          >
-            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
-              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-                Resumen del proceso
-              </h2>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleDescargarPdf}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  Descargar PDF
-                </button>
-                <button
-                  onClick={handleDescargarWordResumen}
-                  disabled={exportingWordResumen}
-                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
-                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
-                >
-                  {exportingWordResumen ? "Generando…" : "Descargar Word"}
-                </button>
-                <button
-                  onClick={() => setShowResumen(false)}
-                  aria-label="Cerrar"
-                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
-                  style={{ color: "var(--text-tertiary)" }}
-                >
-                  ×
-                </button>
-              </div>
-            </div>
-            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
-              {exportErrorResumen && (
-                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
-                  {exportErrorResumen}
-                </p>
-              )}
-              <ResumenPreview result={result} numeroProceso={numeroProceso} nombreProyecto={nombreProyecto} />
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
