@@ -357,6 +357,7 @@ async function callClaude(
   instruction: string,
   documentBlocks: string[],
   maxTokens: number,
+  timeoutMs: number,
 ): Promise<unknown> {
   const response = await client.messages.create(
     {
@@ -373,8 +374,11 @@ async function callClaude(
     // Vercel mata la función entera a los 60s sin darnos chance de responder
     // nada — con esto la propia llamada falla unos segundos antes (dejando
     // margen para el resto del handler) y cae en el manejo de errores normal
-    // en vez de terminar en un 504 crudo sin ningún mensaje útil.
-    { timeout: 48_000 },
+    // en vez de terminar en un 504 crudo sin ningún mensaje útil. OJO: esto
+    // solo funciona porque el cliente se crea con maxRetries: 0 — con los
+    // reintentos por defecto del SDK, un timeout dispara otro intento y la
+    // promesa se resuelve mucho después de este límite, pasándose de los 60s.
+    { timeout: timeoutMs },
   );
 
   if (response.stop_reason === "refusal") {
@@ -476,7 +480,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const client = new Anthropic({ apiKey });
+    // maxRetries: 0 es CRÍTICO. Por defecto el SDK reintenta hasta 2 veces
+    // ante un timeout o error transitorio; en una función con muro de 60s eso
+    // significa que un timeout de 45s dispara un segundo intento que ya no
+    // alcanza a terminar, y como abajo esperamos ambas llamadas con
+    // Promise.allSettled, la respuesta esencial (anexos) que ya estaba lista
+    // se pierde cuando Vercel mata la función → 504 crudo. Sin reintentos,
+    // cada llamada se resuelve (ok o timeout) dentro de su límite y siempre
+    // alcanzamos a responder.
+    const client = new Anthropic({ apiKey, maxRetries: 0 });
 
     // El modelo real usado aquí es Haiku (rápido por token, pero el tiempo
     // de procesamiento sigue siendo proporcional a la cantidad de texto de
@@ -516,9 +528,16 @@ export async function POST(req: NextRequest) {
     // falla, NO debe tumbar el análisis de personal técnico/Anexo 2/Anexo 3,
     // que es lo esencial y ya funcionaba de forma confiable — el resumen
     // simplemente queda vacío y el usuario puede reintentarlo por separado.
+    //
+    // Los timeouts están escalonados dentro del muro de 60s de Vercel: el
+    // resumen (lento, genera mucho más texto) se corta a los 40s para que
+    // nunca sea lo que empuja la función más allá del límite; la parte
+    // esencial (anexos) tiene hasta 50s. Como no hay reintentos, allSettled
+    // se resuelve a más tardar a los ~50s, dejando margen para normalizar y
+    // responder antes de los 60s.
     const [anexosSettled, resumenSettled] = await Promise.allSettled([
-      callClaude(client, SYSTEM_PROMPT_ANEXOS, instructionAnexos, documentBlocks, 8000),
-      callClaude(client, SYSTEM_PROMPT_RESUMEN, instructionResumen, documentBlocks, 8000),
+      callClaude(client, SYSTEM_PROMPT_ANEXOS, instructionAnexos, documentBlocks, 8000, 50_000),
+      callClaude(client, SYSTEM_PROMPT_RESUMEN, instructionResumen, documentBlocks, 8000, 40_000),
     ]);
 
     if (anexosSettled.status === "rejected") {
