@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import type { Anexo3ProyectosMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
@@ -353,7 +354,8 @@ export default function RequisitosPanel({
         {anexo3Sugerido.length === 0 ? (
           <EmptyState message="No se identificaron requisitos de experiencia para el Anexo 3." />
         ) : (
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-3">
             {anexo3Sugerido.map((row, i) => {
               const tecnicoAsignado = tecnicos.find((t) => t.id === asignaciones[i]);
               const proyectoIds = anexo3Proyectos[i] ?? [];
@@ -426,6 +428,19 @@ export default function RequisitosPanel({
                 </div>
               );
             })}
+            </div>
+
+            <div>
+              <SectionTitle>Tabla del Anexo 3 — Experiencia del Personal Técnico</SectionTitle>
+              <Anexo3TablaConsolidada
+                anexo3Sugerido={anexo3Sugerido}
+                anexo2Sugerido={anexo2Sugerido}
+                tecnicos={tecnicos}
+                proyectos={proyectos}
+                asignaciones={asignaciones}
+                anexo3Proyectos={anexo3Proyectos}
+              />
+            </div>
           </div>
         )}
       </section>
@@ -468,6 +483,105 @@ function AlertaClaveItem({ label, requerido, detalle }: { label: string; requeri
       <dd className="text-sm" style={{ color: "var(--text-primary)" }}>
         {detalle || (requerido ? "Sin más detalle en el texto." : "No se detectó este requisito.")}
       </dd>
+    </div>
+  );
+}
+
+function Anexo3TablaConsolidada({
+  anexo3Sugerido,
+  anexo2Sugerido,
+  tecnicos,
+  proyectos,
+  asignaciones,
+  anexo3Proyectos,
+}: {
+  anexo3Sugerido: ExtractionResult["anexo3Sugerido"];
+  anexo2Sugerido: ExtractionResult["anexo2Sugerido"];
+  tecnicos: Tecnico[];
+  proyectos: Proyecto[];
+  asignaciones: Record<number, string>;
+  anexo3Proyectos: Anexo3ProyectosMap;
+}) {
+  // El texto de la fila gris (título del requisito por perfil) sale del pliego
+  // — a veces ya viene numerado ("1.1. Especialista en...") desde la IA. Se usa
+  // el requisito de experiencia y, si no hay, la función del Anexo 2.
+  const requisitoTexto = (i: number) =>
+    anexo3Sugerido[i]?.requisitoExperiencia || anexo2Sugerido[i]?.funcion || `Perfil ${i + 1}`;
+
+  return (
+    <div className="overflow-x-auto rounded-md border" style={{ borderColor: "var(--border)" }}>
+      <table className="w-full min-w-[640px] border-collapse text-sm">
+        <thead>
+          <tr style={{ background: "var(--bg-elevated)" }}>
+            <Th>Personal</Th>
+            <Th>Cliente – Fecha de entrega / Factura</Th>
+            <Th>Proyecto</Th>
+            <Th>Monto</Th>
+          </tr>
+        </thead>
+        <tbody>
+          {anexo3Sugerido.map((_, i) => {
+            // El nombre del técnico se llena automáticamente con quien se haya
+            // asignado a este perfil en la tabla del Anexo 2 (punto 2).
+            const tecnico = tecnicos.find((t) => t.id === asignaciones[i]);
+            const filas = (anexo3Proyectos[i] ?? [])
+              .map((id) => proyectos.find((p) => p.id === id))
+              .filter((p): p is Proyecto => Boolean(p));
+
+            const nombreCelda = tecnico ? (
+              tecnico.nombre
+            ) : (
+              <span className="italic" style={{ color: "var(--text-tertiary)" }}>
+                (asignar técnico en el punto 2)
+              </span>
+            );
+
+            return (
+              <Fragment key={i}>
+                <tr>
+                  <td
+                    colSpan={4}
+                    className="px-3 py-2 text-[13px] font-semibold"
+                    style={{
+                      background: "var(--bg-elevated)",
+                      color: "var(--text-primary)",
+                      borderTop: "1px solid var(--border)",
+                    }}
+                  >
+                    {requisitoTexto(i)}
+                  </td>
+                </tr>
+                {filas.length === 0 ? (
+                  <tr style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                    <Td>{nombreCelda}</Td>
+                    <Td italic muted>
+                      (vincula proyectos con las casillas de arriba)
+                    </Td>
+                    <Td muted>—</Td>
+                    <Td muted>—</Td>
+                  </tr>
+                ) : (
+                  filas.map((p) => (
+                    <tr key={p.id} style={{ borderTop: "1px solid var(--border-subtle)" }}>
+                      <Td>{nombreCelda}</Td>
+                      <Td>
+                        {p.cliente}
+                        {p.fechaActaEntrega ? (
+                          <span className="block text-[11px]" style={{ color: "var(--text-tertiary)" }}>
+                            Acta de entrega: {p.fechaActaEntrega}
+                          </span>
+                        ) : null}
+                      </Td>
+                      <Td>{p.descripcionProyecto || p.descripcionCorta || "—"}</Td>
+                      <Td>{p.monto || "—"}</Td>
+                    </tr>
+                  ))
+                )}
+              </Fragment>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
