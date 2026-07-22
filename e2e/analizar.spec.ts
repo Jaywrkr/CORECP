@@ -72,10 +72,11 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByPlaceholder("ej. SIE-EERSSA-2026-023").fill("PROCESO-A");
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText("Guardado")).toBeVisible({ timeout: 15_000 });
-    // Scoped to the Anexo 2 table — the raw PDF preview text also contains
-    // "Especialista en Estructuras" from the fixture, which would otherwise
-    // make this assertion pass/fail for the wrong reason.
-    await expect(page.locator("table").getByText("Especialista en Estructuras")).toBeVisible();
+    // Scoped a la celda exacta del Anexo 2: tanto el texto crudo del PDF como
+    // la fila gris de la tabla consolidada del Anexo 3 ("1.1. Especialista en
+    // Estructuras") también contienen esta cadena, así que sin exact:true el
+    // selector matchea varios elementos y la aserción falla por strict mode.
+    await expect(page.locator("table").getByText("Especialista en Estructuras", { exact: true })).toBeVisible();
 
     // Proceso B: mismo flujo, con datos totalmente distintos.
     nextResult = resultB;
@@ -84,8 +85,8 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByPlaceholder("ej. SIE-EERSSA-2026-023").fill("PROCESO-B");
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText("Guardado")).toBeVisible({ timeout: 15_000 });
-    await expect(page.locator("table").getByText("Especialista en Redes")).toBeVisible();
-    await expect(page.locator("table").getByText("Especialista en Estructuras")).toHaveCount(0);
+    await expect(page.locator("table").getByText("Especialista en Redes", { exact: true })).toBeVisible();
+    await expect(page.locator("table").getByText("Especialista en Estructuras", { exact: true })).toHaveCount(0);
 
     // Reabrir Proceso A desde caché debe traer SU propia data, sin rastro de B.
     await page.getByRole("button", { name: "Empezar de nuevo" }).click();
@@ -94,8 +95,8 @@ test.describe("Flujo de análisis manual", () => {
     await page.getByRole("button", { name: "Analizar" }).click();
     await expect(page.getByText(/Cargado desde caché/)).toBeVisible({ timeout: 15_000 });
 
-    await expect(page.locator("table").getByText("Especialista en Estructuras")).toBeVisible();
-    await expect(page.locator("table").getByText("Especialista en Redes")).toHaveCount(0);
+    await expect(page.locator("table").getByText("Especialista en Estructuras", { exact: true })).toBeVisible();
+    await expect(page.locator("table").getByText("Especialista en Redes", { exact: true })).toHaveCount(0);
   });
 
   test('"Volver" guarda el análisis pendiente antes de salir', async ({ page }) => {
