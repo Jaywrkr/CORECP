@@ -1,12 +1,15 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import type { Anexo3ProyectosMap, ExtractionResult, ExtractionStatus } from "@/types/extraction";
 import type { Proyecto } from "@/types/proyecto";
 import type { Tecnico } from "@/types/tecnico";
+import ResumenPreview from "./ResumenPreview";
 import { tituloCoincide } from "@/lib/tituloCoincide";
 import { buscarCoincidenciaTT2 } from "@/lib/cpcTT2";
 import { requisitoGrisDePerfil } from "@/lib/anexo3Shared";
+import { descargarBlob } from "@/lib/exportarAnexo2Docx";
+import { generarResumenDocx } from "@/lib/exportarResumenDocx";
 
 interface RequisitosPanelProps {
   status: ExtractionStatus;
@@ -15,6 +18,8 @@ interface RequisitosPanelProps {
   onRetry?: () => void;
   documentCount?: number;
   progressLabel?: string | null;
+  numeroProceso?: string;
+  nombreProyecto?: string | null;
   tecnicos?: Tecnico[];
   proyectos?: Proyecto[];
   asignaciones?: Record<number, string>;
@@ -58,6 +63,8 @@ export default function RequisitosPanel({
   onRetry,
   documentCount = 0,
   progressLabel,
+  numeroProceso,
+  nombreProyecto,
   tecnicos = [],
   proyectos = [],
   asignaciones = {},
@@ -65,6 +72,26 @@ export default function RequisitosPanel({
   anexo3Proyectos = {},
   onAnexo3ProyectosChange,
 }: RequisitosPanelProps) {
+  const [showResumen, setShowResumen] = useState(false);
+  const [exportingWordResumen, setExportingWordResumen] = useState(false);
+  const [exportErrorResumen, setExportErrorResumen] = useState<string | null>(null);
+
+  const handleDescargarPdf = () => window.print();
+
+  const handleDescargarWordResumen = async () => {
+    if (!result) return;
+    setExportingWordResumen(true);
+    setExportErrorResumen(null);
+    try {
+      const blob = await generarResumenDocx({ result, numeroProceso, nombreProyecto });
+      descargarBlob(blob, "Resumen_del_Proceso.docx");
+    } catch (err) {
+      setExportErrorResumen(err instanceof Error ? err.message : "No se pudo generar el archivo Word.");
+    } finally {
+      setExportingWordResumen(false);
+    }
+  };
+
   if (status === "idle") {
     return (
       <div className="flex h-full flex-col items-center justify-center gap-2 px-8 text-center">
@@ -146,6 +173,16 @@ export default function RequisitosPanel({
           se combinó en una sola vista.
         </p>
       )}
+
+      <div>
+        <button
+          onClick={() => setShowResumen(true)}
+          className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors hover:bg-white/5"
+          style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+        >
+          Resumen del proceso
+        </button>
+      </div>
 
       {alertas && (
         <section
@@ -446,6 +483,58 @@ export default function RequisitosPanel({
         )}
       </section>
 
+      {showResumen && (
+        <div
+          className="print-modal-backdrop fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: "rgba(0,0,0,0.75)" }}
+          onClick={() => setShowResumen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="print-modal-shell flex max-h-[90vh] w-full max-w-5xl flex-col overflow-hidden rounded-lg border"
+            style={{ borderColor: "var(--border)", background: "var(--bg-panel)" }}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b px-4 py-3 print:hidden" style={{ borderColor: "var(--border)" }}>
+              <h2 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
+                Resumen del proceso
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleDescargarPdf}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  Descargar PDF
+                </button>
+                <button
+                  onClick={handleDescargarWordResumen}
+                  disabled={exportingWordResumen}
+                  className="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors hover:bg-white/5 disabled:opacity-50"
+                  style={{ borderColor: "var(--border)", color: "var(--text-secondary)" }}
+                >
+                  {exportingWordResumen ? "Generando…" : "Descargar Word"}
+                </button>
+                <button
+                  onClick={() => setShowResumen(false)}
+                  aria-label="Cerrar"
+                  className="rounded px-2 py-1 text-sm hover:bg-white/5"
+                  style={{ color: "var(--text-tertiary)" }}
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+            <div className="print-modal-scroll min-h-0 flex-1 overflow-auto p-4">
+              {exportErrorResumen && (
+                <p className="mb-3 text-xs print:hidden" style={{ color: "var(--danger)" }}>
+                  {exportErrorResumen}
+                </p>
+              )}
+              <ResumenPreview result={result} numeroProceso={numeroProceso} nombreProyecto={nombreProyecto} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
